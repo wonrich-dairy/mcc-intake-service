@@ -1,0 +1,46 @@
+﻿## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rtifacts/
+
+## Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.rsuser
+
+## EF Core
+*.mdf
+*.ldf
+
+## Environment / secrets
+.env
+*.env.local
+appsettings.Development.json
+appsettings.*.local.json
+
+## Logs
+*.log
+logs/
+
+## OS junk
+.DS_Store
+Thumbs.db
+
+## Docker
+docker-compose.override.yml
+
+## Test results
+[Tt]est[Rr]esult*/
+coverage/
+
