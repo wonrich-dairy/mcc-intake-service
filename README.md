@@ -53,11 +53,31 @@ excludes generated EF migrations from the coverage figure.
 | `POST` | `/api/consignments` | Register an arriving society consignment (SCRUM-6). |
 | `GET` | `/api/consignments/{reference}` | Fetch one consignment by its `MCC-YYYYMMDD-SOCIETY-NN` reference. |
 | `GET` | `/api/consignments` | List consignments filtered by society, date, date range or reference. |
-| `GET` | `/api/societies` | Societies available for selection at the gate. |
+| `GET` | `/api/societies` | Societies for gate selection; `search`, `sortBy`, `descending`, `includeInactive` (SCRUM-51). |
 | `GET` | `/api/societies/{id}` | Fetch one society. |
+| `POST` | `/api/societies` | Register a supplying society (SCRUM-51). |
+| `PUT` | `/api/societies/{id}` | Amend a society (SCRUM-51). |
+| `POST` | `/api/societies/{id}/deactivate` | Retire a society so it cannot be selected for new consignments. |
+| `POST` | `/api/societies/{id}/reactivate` | Return a retired society to service. |
 
-Domain rule failures return `application/problem+json` carrying a stable `code`; a consignment
-arriving after the cutoff returns `422` with `code`, `cutoff` and `arrivalTime`.
+There is deliberately no `DELETE` for societies: historical consignments must keep resolving to
+their source, so a society is retired rather than removed.
+
+Domain rule failures return `application/problem+json` carrying a stable `code`:
+
+| Status | When |
+| --- | --- |
+| `400` | Invalid input, or a rule the values break — e.g. moving a society code that consignments already depend on. |
+| `404` | A record addressed by the route does not exist. |
+| `409` | A society code is already in use; the body carries `conflictingCode`. |
+| `422` | A well-formed request referencing something absent, or intake closed for the day (`cutoff`, `arrivalTime`). |
+
+### Authorization
+`Api/Infrastructure/IntakeRoles.cs` declares the roles and policies the service recognises, and
+the endpoints document which roles they require. **Nothing is enforced yet** — enforcement needs
+an authentication scheme, which is SCRUM-34. When that lands, registering the scheme and applying
+`[Authorize(Policy = IntakePolicies.ManageSocieties)]` to the society write endpoints is the
+whole change.
 
 ## Database migrations
 ```powershell
