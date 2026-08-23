@@ -1,4 +1,4 @@
-﻿# MCC & Intake Service
+# MCC & Intake Service
 
 Handles raw milk quality metrics at the Milk Chilling Center, bowser dispatch notes, and factory-intake condition logging, as part of the Wonrich Dairy Quality Monitoring & Traceability System.
 
@@ -19,7 +19,8 @@ git clone https://github.com/wonrich-dairy/mcc-intake-service.git
 cd mcc-intake-service
 dotnet restore
 dotnet run
-```n> Service scaffold and docker-compose setup are added in later sprint stories — these commands apply once that lands.
+```
+> Service scaffold and docker-compose setup are added in later sprint stories — these commands apply once that lands.
 
 ## Branching strategy
 - `main`: protected, production-ready
