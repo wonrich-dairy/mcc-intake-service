@@ -13,16 +13,22 @@ public sealed class SocietyConfiguration : IEntityTypeConfiguration<Society>
         builder.HasKey(society => society.Id);
 
         builder.Property(society => society.Code)
-            .HasMaxLength(10)
+            .HasMaxLength(Society.MaxCodeLength)
             .IsRequired();
 
         builder.Property(society => society.Name)
-            .HasMaxLength(200)
+            .HasMaxLength(Society.MaxNameLength)
             .IsRequired();
 
         builder.Property(society => society.CanLabelPrefix)
-            .HasMaxLength(10)
+            .HasMaxLength(Society.MaxCodeLength)
             .IsRequired();
+
+        builder.Property(society => society.ContactPerson)
+            .HasMaxLength(Society.MaxContactPersonLength);
+
+        builder.Property(society => society.ContactNumber)
+            .HasMaxLength(Society.MaxContactNumberLength);
 
         builder.Property(society => society.IsActive)
             .IsRequired();
