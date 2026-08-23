@@ -1,0 +1,6 @@
+@MccIntakeService_HostAddress = http://localhost:5237
+
+GET {{MccIntakeService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
