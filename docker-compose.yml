@@ -1,0 +1,35 @@
+services:
+  mcc-intake-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=mcc-intake-db;Port=3306;Database=mcc_intake;User=mcc_user;Password=${MYSQL_PASSWORD:-DevPassword123!}
+    depends_on:
+      mcc-intake-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mcc-intake-db:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-RootDevPassword123!}
+      MYSQL_DATABASE: mcc_intake
+      MYSQL_USER: mcc_user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-DevPassword123!}
+    volumes:
+      - mcc-intake-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-RootDevPassword123!}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mcc-intake-data:
