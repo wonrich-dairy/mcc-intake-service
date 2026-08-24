@@ -1,0 +1,13 @@
+**/.git
+**/.vs
+**/.vscode
+**/.idea
+**/bin
+**/obj
+**/node_modules
+**/.env
+**/docker-compose.override.yml
+**/README.md
+**/.editorconfig
+**/coverage
+**/*.log
