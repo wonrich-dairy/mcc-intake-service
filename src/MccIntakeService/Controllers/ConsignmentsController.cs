@@ -9,9 +9,11 @@ namespace MccIntakeService.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/consignments")]
-[Produces("application/json")]
 public class ConsignmentsController : ControllerBase
 {
+    /// <summary>Media type every error response on this controller is served as (RFC 9457).</summary>
+    private const string ProblemJson = "application/problem+json";
+
     private readonly IConsignmentService _consignments;
 
     public ConsignmentsController(IConsignmentService consignments)
@@ -26,12 +28,19 @@ public class ConsignmentsController : ControllerBase
     /// are rejected with 422 and a message naming the cutoff.
     /// </remarks>
     /// <response code="201">The consignment was registered.</response>
-    /// <response code="400">The submitted can sheet is incomplete or invalid.</response>
-    /// <response code="422">The society does not exist, or intake has closed for the day.</response>
+    /// <response code="400">
+    /// The submitted can sheet is incomplete or invalid — no cans, a non-positive quantity, the
+    /// same can entered twice, or an arrival time in the future.
+    /// </response>
+    /// <response code="422">
+    /// Either the society is not registered (<c>code: entity_not_found</c>) or intake has closed
+    /// for the day (<c>code: intake_cutoff_exceeded</c>, which also carries <c>cutoff</c> and
+    /// <c>arrivalTime</c>). Branch on <c>code</c> to tell them apart.
+    /// </response>
     [HttpPost]
-    [ProducesResponseType(typeof(ConsignmentView), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ConsignmentView), StatusCodes.Status201Created, "application/json")]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
+    [ProducesResponseType(typeof(IntakeUnprocessableProblemDetails), StatusCodes.Status422UnprocessableEntity, ProblemJson)]
     public async Task<ActionResult<ConsignmentView>> Register(
         [FromBody] RegisterConsignmentRequest request,
         CancellationToken cancellationToken)
@@ -55,8 +64,8 @@ public class ConsignmentsController : ControllerBase
     /// <response code="200">The consignment was found.</response>
     /// <response code="404">No consignment carries that reference.</response>
     [HttpGet("{reference}")]
-    [ProducesResponseType(typeof(ConsignmentView), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ConsignmentView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
     public async Task<ActionResult<ConsignmentView>> GetByReference(
         string reference,
         CancellationToken cancellationToken)
@@ -86,7 +95,7 @@ public class ConsignmentsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <response code="200">A page of matching consignments.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(PagedResult<ConsignmentView>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<ConsignmentView>), StatusCodes.Status200OK, "application/json")]
     public async Task<ActionResult<PagedResult<ConsignmentView>>> Search(
         [FromQuery] Guid? societyId,
         [FromQuery] string? societyCode,

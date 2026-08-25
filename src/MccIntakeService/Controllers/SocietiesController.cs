@@ -1,3 +1,4 @@
+using MccIntakeService.Api.Contracts;
 using MccIntakeService.Application.Societies;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,9 +10,11 @@ namespace MccIntakeService.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/societies")]
-[Produces("application/json")]
 public class SocietiesController : ControllerBase
 {
+    /// <summary>Media type every error response on this controller is served as (RFC 9457).</summary>
+    private const string ProblemJson = "application/problem+json";
+
     private readonly ISocietyService _societies;
 
     public SocietiesController(ISocietyService societies)
@@ -24,7 +27,7 @@ public class SocietiesController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <response code="200">The registered societies.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<SocietyView>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<SocietyView>), StatusCodes.Status200OK, "application/json")]
     public async Task<ActionResult<IReadOnlyList<SocietyView>>> List(
         CancellationToken cancellationToken,
         [FromQuery] bool includeInactive = false)
@@ -38,8 +41,8 @@ public class SocietiesController : ControllerBase
     /// <response code="200">The society was found.</response>
     /// <response code="404">No society carries that identifier.</response>
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
     public async Task<ActionResult<SocietyView>> Get(Guid id, CancellationToken cancellationToken)
     {
         var society = await _societies.GetAsync(id, cancellationToken);
