@@ -28,11 +28,19 @@ builder.Services
 // The server version is configured rather than auto-detected so start-up does not depend on the
 // database being reachable, and so migrations can be scaffolded without a running server.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrWhiteSpace(connectionString))
+if (string.IsNullOrWhiteSpace(connectionString))
 {
-    builder.Services.AddDbContext<MccIntakeDbContext>(options =>
-        options.UseMySql(connectionString, DatabaseDefaults.ServerVersionFrom(builder.Configuration)));
+    // Registering the context conditionally used to leave the services that depend on it
+    // unsatisfiable, so start-up failed with a DI resolution dump that never mentions the real
+    // cause. Fail here instead, naming the setting that is missing.
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection is not configured. Copy "
+        + "src/MccIntakeService/appsettings.Development.template.json to appsettings.Development.json "
+        + "for local development, or set ConnectionStrings__DefaultConnection in the environment.");
 }
+
+builder.Services.AddDbContext<MccIntakeDbContext>(options =>
+    options.UseMySql(connectionString, DatabaseDefaults.ServerVersionFrom(builder.Configuration)));
 
 builder.Services.AddScoped<IConsignmentReferenceGenerator, ConsignmentReferenceGenerator>();
 builder.Services.AddScoped<IConsignmentService, ConsignmentService>();
