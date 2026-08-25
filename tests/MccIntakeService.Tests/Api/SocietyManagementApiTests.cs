@@ -199,6 +199,35 @@ public class SocietyManagementApiTests
     }
 
     [Fact]
+    public async Task A_duplicate_code_conflict_is_served_as_problem_json()
+    {
+        using var factory = NewFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/societies", NewSociety("KC"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task The_documented_409_schema_carries_the_conflicting_code()
+    {
+        using var factory = NewFactory();
+        var client = factory.CreateClient();
+
+        var swagger = JsonDocument.Parse(await client.GetStringAsync("/swagger/v1/swagger.json")).RootElement;
+
+        var content = SwaggerSchema.ResponseContent(swagger, "/api/societies", "post", "409");
+        Assert.Contains("application/problem+json", SwaggerSchema.MediaTypes(content));
+
+        var properties = SwaggerSchema.PropertyNamesFor(swagger, "/api/societies", "post", "409");
+
+        Assert.Contains("conflictingCode", properties);
+        Assert.Contains("code", properties);
+    }
+
+    [Fact]
     public async Task The_swagger_document_lists_the_society_management_endpoints()
     {
         using var factory = NewFactory();

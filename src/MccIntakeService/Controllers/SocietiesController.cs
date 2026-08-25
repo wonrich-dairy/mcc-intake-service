@@ -85,9 +85,9 @@ public class SocietiesController : ControllerBase
     /// <response code="400">The submitted details are incomplete or invalid.</response>
     /// <response code="409">A society already uses that code.</response>
     [HttpPost]
-    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status201Created, "application/json")]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
+    [ProducesResponseType(typeof(DuplicateCodeProblemDetails), StatusCodes.Status409Conflict, ProblemJson)]
     public async Task<ActionResult<SocietyView>> Create(
         [FromBody] SaveSocietyRequest request,
         CancellationToken cancellationToken)
@@ -115,10 +115,10 @@ public class SocietiesController : ControllerBase
     /// <response code="404">No society carries that identifier.</response>
     /// <response code="409">Another society already uses that code.</response>
     [HttpPut("{id:guid}")]
-    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
+    [ProducesResponseType(typeof(DuplicateCodeProblemDetails), StatusCodes.Status409Conflict, ProblemJson)]
     public async Task<ActionResult<SocietyView>> Update(
         Guid id,
         [FromBody] SaveSocietyRequest request,
@@ -144,8 +144,8 @@ public class SocietiesController : ControllerBase
     /// <response code="200">The society was retired.</response>
     /// <response code="404">No society carries that identifier.</response>
     [HttpPost("{id:guid}/deactivate")]
-    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
     public async Task<ActionResult<SocietyView>> Deactivate(Guid id, CancellationToken cancellationToken)
     {
         return await RouteScoped(id, () => _societies.DeactivateAsync(id, cancellationToken));
@@ -157,8 +157,8 @@ public class SocietiesController : ControllerBase
     /// <response code="200">The society is active again.</response>
     /// <response code="404">No society carries that identifier.</response>
     [HttpPost("{id:guid}/reactivate")]
-    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
     public async Task<ActionResult<SocietyView>> Reactivate(Guid id, CancellationToken cancellationToken)
     {
         return await RouteScoped(id, () => _societies.ReactivateAsync(id, cancellationToken));

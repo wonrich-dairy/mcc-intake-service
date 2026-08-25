@@ -22,57 +22,11 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
         _factory = fixture.Factory;
     }
 
-    private async Task<JsonElement> SwaggerAsync(HttpClient client)
+    private static async Task<JsonElement> SwaggerAsync(HttpClient client)
     {
         var document = await client.GetStringAsync("/swagger/v1/swagger.json");
 
         return JsonDocument.Parse(document).RootElement;
-    }
-
-    private static JsonElement ResponseSchema(JsonElement swagger, string path, string verb, string status)
-    {
-        var response = swagger.GetProperty("paths").GetProperty(path).GetProperty(verb)
-            .GetProperty("responses").GetProperty(status);
-
-        return response.GetProperty("content");
-    }
-
-    /// <summary>Walks $ref / allOf so an inherited schema reports every property it exposes.</summary>
-    private static HashSet<string> PropertyNames(JsonElement swagger, JsonElement schema)
-    {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-
-        if (schema.TryGetProperty("$ref", out var reference))
-        {
-            var name = reference.GetString()!.Split('/')[^1];
-            var resolved = swagger.GetProperty("components").GetProperty("schemas").GetProperty(name);
-
-            foreach (var property in PropertyNames(swagger, resolved))
-            {
-                names.Add(property);
-            }
-        }
-
-        if (schema.TryGetProperty("allOf", out var allOf))
-        {
-            foreach (var member in allOf.EnumerateArray())
-            {
-                foreach (var property in PropertyNames(swagger, member))
-                {
-                    names.Add(property);
-                }
-            }
-        }
-
-        if (schema.TryGetProperty("properties", out var properties))
-        {
-            foreach (var property in properties.EnumerateObject())
-            {
-                names.Add(property.Name);
-            }
-        }
-
-        return names;
     }
 
     [Fact]
@@ -81,10 +35,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
         var client = _factory.CreateClient();
         var swagger = await SwaggerAsync(client);
 
-        var content = ResponseSchema(swagger, "/api/consignments", "post", "422");
-        var schema = content.GetProperty("application/problem+json").GetProperty("schema");
-
-        var properties = PropertyNames(swagger, schema);
+        var properties = SwaggerSchema.PropertyNamesFor(swagger, "/api/consignments", "post", "422");
 
         Assert.Contains("code", properties);
         Assert.Contains("cutoff", properties);
@@ -99,8 +50,8 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
 
         foreach (var status in new[] { "400", "422" })
         {
-            var content = ResponseSchema(swagger, "/api/consignments", "post", status);
-            var mediaTypes = content.EnumerateObject().Select(media => media.Name).ToList();
+            var mediaTypes = SwaggerSchema.MediaTypes(
+                SwaggerSchema.ResponseContent(swagger, "/api/consignments", "post", status));
 
             Assert.Contains("application/problem+json", mediaTypes);
             Assert.DoesNotContain("application/json", mediaTypes);
@@ -113,9 +64,10 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
         var client = _factory.CreateClient();
         var swagger = await SwaggerAsync(client);
 
-        var content = ResponseSchema(swagger, "/api/consignments", "post", "201");
+        var mediaTypes = SwaggerSchema.MediaTypes(
+            SwaggerSchema.ResponseContent(swagger, "/api/consignments", "post", "201"));
 
-        Assert.Contains("application/json", content.EnumerateObject().Select(media => media.Name));
+        Assert.Contains("application/json", mediaTypes);
     }
 
     [Fact]
