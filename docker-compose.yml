@@ -4,9 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "5000:8080"
+      - "${API_HOST_PORT:-5000}:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      # Port 3306 = MySQL's port INSIDE the compose network.
+      # The host-side mapping below (3307 by default) is irrelevant here.
       - ConnectionStrings__DefaultConnection=Server=mcc-intake-db;Port=3306;Database=mcc_intake;User=mcc_user;Password=${MYSQL_PASSWORD:-DevPassword123!}
     depends_on:
       mcc-intake-db:
@@ -14,10 +16,11 @@ services:
     restart: unless-stopped
 
   mcc-intake-db:
-    image: mysql:8.0
+    # Pinned patch version: "mysql:8.0" floats and breaks AC5's
+    # "local matches deployed schema". Align with Azure Flexible Server.
+    image: mysql:8.0.45
     ports:
-      - "3306:3306"
-      - "3307:3306"
+      - "${MYSQL_HOST_PORT:-3307}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-RootDevPassword123!}
       MYSQL_DATABASE: mcc_intake
@@ -26,10 +29,17 @@ services:
     volumes:
       - mcc-intake-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-RootDevPassword123!}"]
+      # -h 127.0.0.1 forces a TCP probe. "-h localhost" uses the Unix
+      # socket, which can report healthy before port 3306 accepts
+      # connections, releasing depends_on too early.
+      # $$MYSQL_ROOT_PASSWORD is read from the container's own env at
+      # runtime, so the root password stays out of `docker inspect`.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 10s
       timeout: 5s
       retries: 5
+      # Covers first-time initdb so the retry budget isn't spent on it.
+      start_period: 30s
     restart: unless-stopped
 
 volumes:
