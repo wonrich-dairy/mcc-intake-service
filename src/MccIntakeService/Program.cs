@@ -1,9 +1,18 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using MccIntakeService.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+
+// Entity Framework — MySQL (SCRUM-36)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<MccIntakeDbContext>(options =>
+    options.UseMySQL(connectionString ?? throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' not found. " +
+        "Set it in appsettings.json, appsettings.Development.json, or via environment variable.")));
 
 // Swagger / OpenAPI — Swashbuckle (SCRUM-49)
 builder.Services.AddEndpointsApiExplorer();
@@ -26,6 +35,14 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+// Auto-apply pending EF migrations in Development and Staging (SCRUM-36)
+if (!app.Environment.IsProduction())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<MccIntakeDbContext>();
+    db.Database.Migrate();
+}
 
 // Configure the HTTP request pipeline.
 // Swagger UI available in Development and Staging; disabled in Production (SCRUM-49)
