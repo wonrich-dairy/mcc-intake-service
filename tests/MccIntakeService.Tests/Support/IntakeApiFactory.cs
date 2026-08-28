@@ -1,3 +1,4 @@
+﻿using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -68,6 +69,23 @@ internal sealed class IntakeApiFactory : WebApplicationFactory<Program>
             services.Remove(registration);
         }
     }
+
+    /// <summary>
+    /// A client that presents the given roles on every request, for the endpoints SCRUM-51
+    /// restricts to MCC Managers and System Administrators.
+    /// </summary>
+    public HttpClient CreateClientAs(params string[] roles)
+    {
+        var client = CreateClient();
+
+        client.DefaultRequestHeaders.Add(IntakeAuthentication.RoleHeader, string.Join(',', roles));
+        client.DefaultRequestHeaders.Add(IntakeAuthentication.UserHeader, "test-user");
+
+        return client;
+    }
+
+    /// <summary>A client authorised to maintain societies — the usual caller in these tests.</summary>
+    public HttpClient CreateManagerClient() => CreateClientAs(IntakeRoles.MccManager);
 
     /// <summary>Runs an assertion against the database the hosted application is using.</summary>
     public async Task WithDbContextAsync(Func<MccIntakeDbContext, Task> action)

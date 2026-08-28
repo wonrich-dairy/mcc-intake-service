@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MccIntakeService.Application.Societies;
@@ -30,7 +30,7 @@ public class SocietyManagementApiTests
     public async Task Registering_a_society_returns_201_and_it_is_then_fetchable()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var response = await client.PostAsJsonAsync("/api/societies", NewSociety());
 
@@ -49,7 +49,7 @@ public class SocietyManagementApiTests
     public async Task Registering_a_society_on_a_code_already_in_use_returns_409()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var response = await client.PostAsJsonAsync("/api/societies", NewSociety("KC"));
 
@@ -64,7 +64,7 @@ public class SocietyManagementApiTests
     public async Task Registering_a_society_without_a_code_or_name_returns_400()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var response = await client.PostAsJsonAsync("/api/societies", new { code = "", name = "", canLabelPrefix = "" });
 
@@ -75,7 +75,7 @@ public class SocietyManagementApiTests
     public async Task A_society_can_be_amended_over_http()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var created = await (await client.PostAsJsonAsync("/api/societies", NewSociety()))
             .Content.ReadFromJsonAsync<SocietyView>(JsonOptions);
@@ -100,7 +100,7 @@ public class SocietyManagementApiTests
     public async Task Amending_a_society_that_does_not_exist_returns_404()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var response = await client.PutAsJsonAsync($"/api/societies/{Guid.NewGuid()}", NewSociety());
 
@@ -111,7 +111,7 @@ public class SocietyManagementApiTests
     public async Task Moving_a_code_that_consignments_depend_on_returns_400()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var societies = await client.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
         var kandy = societies!.Single(society => society.Code == "KC");
@@ -139,7 +139,7 @@ public class SocietyManagementApiTests
     public async Task A_society_can_be_retired_and_returned_to_service_over_http()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var created = await (await client.PostAsJsonAsync("/api/societies", NewSociety()))
             .Content.ReadFromJsonAsync<SocietyView>(JsonOptions);
@@ -163,7 +163,7 @@ public class SocietyManagementApiTests
     public async Task Retiring_a_society_that_does_not_exist_returns_404()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var response = await client.PostAsync($"/api/societies/{Guid.NewGuid()}/deactivate", null);
 
@@ -174,7 +174,7 @@ public class SocietyManagementApiTests
     public async Task The_list_can_be_searched_and_sorted_over_http()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var searched = await client.GetFromJsonAsync<List<SocietyView>>("/api/societies?search=kandy", JsonOptions);
         Assert.Equal("KC", Assert.Single(searched!).Code);
@@ -188,7 +188,7 @@ public class SocietyManagementApiTests
     public async Task There_is_no_delete_endpoint_for_societies()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var societies = await client.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
 
@@ -202,7 +202,7 @@ public class SocietyManagementApiTests
     public async Task A_duplicate_code_conflict_is_served_as_problem_json()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var response = await client.PostAsJsonAsync("/api/societies", NewSociety("KC"));
 
@@ -214,7 +214,7 @@ public class SocietyManagementApiTests
     public async Task The_documented_409_schema_carries_the_conflicting_code()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var swagger = JsonDocument.Parse(await client.GetStringAsync("/swagger/v1/swagger.json")).RootElement;
 
@@ -231,7 +231,7 @@ public class SocietyManagementApiTests
     public async Task The_swagger_document_lists_the_society_management_endpoints()
     {
         using var factory = NewFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateManagerClient();
 
         var document = await client.GetStringAsync("/swagger/v1/swagger.json");
 
