@@ -27,6 +27,10 @@ public sealed class ConsignmentConfiguration : IEntityTypeConfiguration<Consignm
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(consignment => consignment.TotalQuantityKg)
+            .HasPrecision(10, 2)
+            .IsRequired();
+
         builder.Property(consignment => consignment.TotalQuantityLitres)
             .HasPrecision(10, 2)
             .IsRequired();

@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.Consignments;
+﻿using MccIntakeService.Domain.Consignments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -17,6 +17,10 @@ public sealed class ConsignmentCanConfiguration : IEntityTypeConfiguration<Consi
             .IsRequired();
 
         builder.Property(can => can.CanNumber)
+            .IsRequired();
+
+        builder.Property(can => can.QuantityKg)
+            .HasPrecision(8, 2)
             .IsRequired();
 
         builder.Property(can => can.QuantityLitres)

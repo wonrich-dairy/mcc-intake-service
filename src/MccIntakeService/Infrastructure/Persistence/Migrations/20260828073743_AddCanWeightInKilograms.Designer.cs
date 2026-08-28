@@ -4,6 +4,7 @@ using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MccIntakeService.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MccIntakeDbContext))]
-    partial class MccIntakeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260828073743_AddCanWeightInKilograms")]
+    partial class AddCanWeightInKilograms
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

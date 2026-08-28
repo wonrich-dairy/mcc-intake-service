@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.Common;
+﻿using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Societies;
 
 namespace MccIntakeService.Domain.Consignments;
@@ -38,6 +38,7 @@ public class Consignment
         RegisteredBy = registeredBy;
 
         _cans.AddRange(cans);
+        TotalQuantityKg = decimal.Round(_cans.Sum(can => can.QuantityKg), 2, MidpointRounding.AwayFromZero);
         TotalQuantityLitres = decimal.Round(_cans.Sum(can => can.QuantityLitres), 2, MidpointRounding.AwayFromZero);
     }
 
@@ -58,7 +59,14 @@ public class Consignment
 
     public ConsignmentStatus Status { get; private set; }
 
-    /// <summary>Sum of the quantities of every can, maintained by the aggregate rather than supplied by the caller.</summary>
+    /// <summary>Weight of every can added up, maintained by the aggregate rather than supplied by the caller.</summary>
+    public decimal TotalQuantityKg { get; private set; }
+
+    /// <summary>
+    /// Litres of every can added up. Summed from the already-derived can figures rather than
+    /// converted from <see cref="TotalQuantityKg"/>, so the total always equals the breakdown
+    /// the officer can see.
+    /// </summary>
     public decimal TotalQuantityLitres { get; private set; }
 
     public DateTime RegisteredAtUtc { get; private set; }
@@ -76,6 +84,7 @@ public class Consignment
     /// <param name="society">The registered supplying society.</param>
     /// <param name="arrivalAtLocal">Arrival wall-clock time in the centre's time zone.</param>
     /// <param name="cans">At least one can entry.</param>
+    /// <param name="densityKgPerLitre">Configured milk density, used to derive litres from weight.</param>
     /// <param name="dailyCutoff">Configured local time after which intake closes.</param>
     /// <param name="nowLocal">Current wall-clock time in the centre's time zone.</param>
     /// <param name="registeredAtUtc">Instant the registration was accepted.</param>
@@ -86,6 +95,7 @@ public class Consignment
         Society society,
         DateTime arrivalAtLocal,
         IReadOnlyCollection<CanEntry> cans,
+        decimal densityKgPerLitre,
         TimeOnly dailyCutoff,
         DateTime nowLocal,
         DateTimeOffset registeredAtUtc,
@@ -126,7 +136,12 @@ public class Consignment
 
         var canEntities = cans
             .OrderBy(can => can.CanNumber)
-            .Select(can => new ConsignmentCan(Guid.NewGuid(), society.CanLabelPrefix, can.CanNumber, can.QuantityLitres))
+            .Select(can => new ConsignmentCan(
+                Guid.NewGuid(),
+                society.CanLabelPrefix,
+                can.CanNumber,
+                can.QuantityKg,
+                densityKgPerLitre))
             .ToList();
 
         return new Consignment(id, reference, society, arrivalAtLocal, canEntities, registeredAtUtc, registeredBy);
