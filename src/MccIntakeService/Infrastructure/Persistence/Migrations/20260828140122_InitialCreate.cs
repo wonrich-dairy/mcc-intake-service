@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using MySql.EntityFrameworkCore.Metadata;
 
 #nullable disable
 
@@ -14,43 +15,57 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterDatabase()
-                .Annotation("MySql:CharSet", "utf8mb4");
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "MilkCollectionCenters",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    Code = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false),
+                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false),
+                    Location = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true),
+                    ContactNumber = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MilkCollectionCenters", x => x.Id);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "societies",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Code = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CanLabelPrefix = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Code = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false),
+                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false),
+                    CanLabelPrefix = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_societies", x => x.Id);
                 })
-                .Annotation("MySql:CharSet", "utf8mb4");
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "consignments",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Reference = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    SocietyId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Reference = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false),
+                    SocietyId = table.Column<Guid>(type: "char(36)", nullable: false),
                     ArrivalAtLocal = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     ArrivalDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false),
                     TotalQuantityLitres = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: false),
                     RegisteredAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     RegisteredBy = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
@@ -62,16 +77,15 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 })
-                .Annotation("MySql:CharSet", "utf8mb4");
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "consignment_cans",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    ConsignmentId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    CanLabel = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false),
+                    ConsignmentId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    CanLabel = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false),
                     CanNumber = table.Column<int>(type: "int", nullable: false),
                     QuantityLitres = table.Column<decimal>(type: "decimal(8,2)", precision: 8, scale: 2, nullable: false)
                 },
@@ -85,7 +99,7 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
-                .Annotation("MySql:CharSet", "utf8mb4");
+                .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.InsertData(
                 table: "societies",
@@ -116,6 +130,12 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_MilkCollectionCenters_Code",
+                table: "MilkCollectionCenters",
+                column: "Code",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "ux_societies_code",
                 table: "societies",
                 column: "Code",
@@ -127,6 +147,9 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
         {
             migrationBuilder.DropTable(
                 name: "consignment_cans");
+
+            migrationBuilder.DropTable(
+                name: "MilkCollectionCenters");
 
             migrationBuilder.DropTable(
                 name: "consignments");

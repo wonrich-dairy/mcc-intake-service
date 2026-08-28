@@ -3,7 +3,6 @@ using System;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -12,18 +11,16 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MccIntakeService.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MccIntakeDbContext))]
-    [Migration("20260823125537_AddSocietyContactDetails")]
-    partial class AddSocietyContactDetails
+    [Migration("20260828140122_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.19")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
-
-            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("MccIntakeService.Domain.Consignments.Consignment", b =>
                 {
@@ -119,14 +116,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("varchar(10)");
 
-                    b.Property<string>("ContactNumber")
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<string>("ContactPerson")
-                        .HasMaxLength(150)
-                        .HasColumnType("varchar(150)");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
@@ -149,8 +138,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                             Id = new Guid("6f0f6f1a-0001-4a2b-9c3d-000000000001"),
                             CanLabelPrefix = "KC",
                             Code = "KC",
-                            ContactNumber = "+94 81 222 3344",
-                            ContactPerson = "Sunil Perera",
                             IsActive = true,
                             Name = "Kandy Co-operative Dairy Society"
                         },
@@ -159,8 +146,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                             Id = new Guid("6f0f6f1a-0002-4a2b-9c3d-000000000002"),
                             CanLabelPrefix = "MT",
                             Code = "MT",
-                            ContactNumber = "+94 66 222 5566",
-                            ContactPerson = "Kamala Ranasinghe",
                             IsActive = true,
                             Name = "Matale Farmers' Milk Society"
                         },
@@ -169,8 +154,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                             Id = new Guid("6f0f6f1a-0003-4a2b-9c3d-000000000003"),
                             CanLabelPrefix = "NW",
                             Code = "NW",
-                            ContactNumber = "+94 52 222 7788",
-                            ContactPerson = "Ravi Kumar",
                             IsActive = true,
                             Name = "Nuwara Eliya Highland Society"
                         },
@@ -179,11 +162,50 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                             Id = new Guid("6f0f6f1a-0004-4a2b-9c3d-000000000004"),
                             CanLabelPrefix = "BD",
                             Code = "BD",
-                            ContactNumber = "+94 55 222 9900",
-                            ContactPerson = "Anoma Jayasuriya",
                             IsActive = true,
                             Name = "Badulla Uva Milk Society"
                         });
+                });
+
+            modelBuilder.Entity("MccIntakeService.Models.MilkCollectionCenter", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("ContactNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("MilkCollectionCenters");
                 });
 
             modelBuilder.Entity("MccIntakeService.Domain.Consignments.Consignment", b =>
