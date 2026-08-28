@@ -47,6 +47,11 @@ excludes generated EF migrations from the coverage figure.
 | `Intake:DailyCutoff` | `16:00` | Local time after which milk is no longer accepted. |
 | `Intake:TimeZone` | `Asia/Colombo` | Zone the centre's wall clock and intake dates run on. |
 | `Intake:MilkDensityKgPerLitre` | `1.03` | Density used to derive litres from the weight recorded at the gate. |
+| `Auth:Issuer` | `wonrich-auth` | Issuer stamped on tokens and required by every validator. |
+| `Auth:Audience` | `wonrich-services` | Audience all four services accept. |
+| `Auth:SigningKey` | *(empty)* | Symmetric signing key, at least 32 characters. Supplied per environment; never committed. |
+| `Auth:AccessTokenMinutes` | `60` | Access token lifetime. |
+| `Auth:RefreshTokenDays` | `7` | Refresh token lifetime. |
 
 ## API
 | Method | Route | Purpose |
@@ -80,18 +85,27 @@ never submitted. Both figures are stored rather than litres being recomputed on 
 the density later cannot restate quantities already recorded. Consignment totals are summed from
 the can breakdown, so a total always equals the cans it lists.
 
-### Authorization
-`Api/Infrastructure/IntakeRoles.cs` declares the roles and policies the service recognises.
-`IntakePolicies.ManageSocieties` — satisfied by `MccManager` or `SystemAdministrator` — is
-enforced on the four society write endpoints, which answer `401` when unauthenticated and `403`
-when the caller holds neither role. Reads stay open, because an intake officer has to list
-societies to pick one at the gate.
+### Authentication and authorization
+Authentication is centralised (SCRUM-34). `src/Wonrich.AuthService` issues signed JWTs;
+`src/Wonrich.Auth` is the shared library every service uses to validate them. Validation is local
+to each service — signature, issuer, audience and expiry — so no service calls the auth service to
+decide whether a request is authentic.
 
-The identity behind those roles currently comes from `IntakeRoleHeaderHandler`, which reads the
-`X-Intake-Role` header and trusts it. **That is a placeholder, not a security control**, so
-start-up refuses the Production environment outright. SCRUM-34 replaces it with real
-authentication; only the two registrations in `Program.cs` change, because a JWT bearer handler
-yields the same role claims. The policies and the `[Authorize]` attributes stay as they are.
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/auth/login` | Exchange a username and password for an access and refresh token. |
+| `POST` | `/api/auth/refresh` | Exchange a refresh token for a fresh pair. |
+
+Seven roles are configured in `Wonrich.Auth/Authorization/WonrichRoles.cs`, and each user holds
+exactly one. `Api/Infrastructure/IntakeRoles.cs` holds only this service's mapping of roles to
+what they may do: `ManageSocieties` (`MccManager`, `SystemAdministrator`) and
+`RegisterConsignments` (those two plus `IntakeOfficer`). Guarded endpoints answer `401` when
+unauthenticated and `403` when the role is wrong. Society reads stay open, because an intake
+officer has to list societies to pick one at the gate.
+
+Refresh tokens are single use — exchanging one revokes it — and are stored only as a hash, as are
+passwords (PBKDF2-SHA256, per-password salt). Failed sign-ins are logged with the username, the
+timestamp and the source address; never the password.
 
 ## Database migrations
 ```powershell

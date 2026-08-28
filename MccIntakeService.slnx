@@ -6,5 +6,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MccIntakeService.Tests/MccIntakeService.Tests.csproj" />
+    <Project Path="tests/Wonrich.AuthService.Tests/Wonrich.AuthService.Tests.csproj" />
   </Folder>
 </Solution>
