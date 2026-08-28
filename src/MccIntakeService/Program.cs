@@ -8,6 +8,10 @@ using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
+// Aliased rather than imported: the namespace also carries a SystemClock, which would collide
+// with the application's own IClock implementation registered below.
+using AuthenticationSchemeOptions = Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container. Enums travel as their names so the API stays readable
@@ -52,6 +56,31 @@ builder.Services.AddSingleton<IIntakeClock, IntakeClock>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DomainExceptionHandler>();
 
+// Authentication and authorization (SCRUM-51).
+// SCRUM-51 requires that only MCC Managers and System Administrators may maintain societies. The
+// policy below is the enforced form of that rule; the scheme underneath it is a placeholder that
+// trusts a request header, and SCRUM-34 replaces it with real authentication. Only these two
+// registrations move when it does — the policies and the [Authorize] attributes stay as they are.
+if (builder.Environment.IsProduction())
+{
+    // A header-trusting scheme is not a security control. Refuse to start rather than serve
+    // production traffic behind one.
+    throw new InvalidOperationException(
+        $"The interim '{IntakeAuthentication.Scheme}' authentication scheme cannot be used in "
+        + "Production. Real authentication arrives with SCRUM-34; until then this service must "
+        + "only run in Development or Staging.");
+}
+
+builder.Services
+    .AddAuthentication(IntakeAuthentication.Scheme)
+    .AddScheme<AuthenticationSchemeOptions, IntakeRoleHeaderHandler>(IntakeAuthentication.Scheme, null);
+
+builder.Services
+    .AddAuthorizationBuilder()
+    .AddPolicy(IntakePolicies.ManageSocieties, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireRole(IntakePolicies.ManageSocietiesRoles));
+
 // Swagger / OpenAPI — Swashbuckle (SCRUM-49)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -90,6 +119,7 @@ if (!app.Environment.IsProduction())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
