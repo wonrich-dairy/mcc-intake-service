@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using MccIntakeService.Application.Societies;
 using MccIntakeService.Tests.Support;
+using Wonrich.Auth.Authorization;
 
 namespace MccIntakeService.Tests.Api;
 
@@ -32,7 +33,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task The_documented_422_schema_includes_code_cutoff_and_arrival_time()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var swagger = await SwaggerAsync(client);
 
         var properties = SwaggerSchema.PropertyNamesFor(swagger, "/api/consignments", "post", "422");
@@ -45,7 +46,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Error_responses_are_documented_as_problem_json_not_plain_json()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var swagger = await SwaggerAsync(client);
 
         foreach (var status in new[] { "400", "422" })
@@ -61,7 +62,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Success_responses_stay_documented_as_plain_json()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var swagger = await SwaggerAsync(client);
 
         var mediaTypes = SwaggerSchema.MediaTypes(
@@ -76,7 +77,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
         using var factory = new IntakeApiFactory();
         factory.Clock.LocalNow = new DateTime(2026, 8, 23, 21, 20, 0);
 
-        var client = factory.CreateClient();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societies = await client.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
 
         var response = await client.PostAsJsonAsync("/api/consignments", new
@@ -99,7 +100,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task The_other_422_carries_code_but_no_cutoff_fields()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var response = await client.PostAsJsonAsync("/api/consignments", new
         {
@@ -122,7 +123,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task A_model_validation_400_is_also_served_as_problem_json()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societies = await client.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
 
         var response = await client.PostAsJsonAsync("/api/consignments", new
@@ -138,7 +139,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task A_404_is_served_as_problem_json()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var response = await client.GetAsync("/api/consignments/MCC-20260823-KC-99");
 

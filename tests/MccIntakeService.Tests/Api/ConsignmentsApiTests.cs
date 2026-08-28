@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.Societies;
 using MccIntakeService.Tests.Support;
+using Wonrich.Auth.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace MccIntakeService.Tests.Api;
@@ -45,7 +46,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Registering_a_consignment_returns_201_with_a_location_header()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societyId = await KandySocietyIdAsync(client);
 
         var response = await client.PostAsJsonAsync("/api/consignments", CanSheet(societyId));
@@ -64,7 +65,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task The_registered_consignment_can_be_fetched_from_the_location_it_reports()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societyId = await KandySocietyIdAsync(client);
 
         var created = await client.PostAsJsonAsync("/api/consignments", CanSheet(societyId));
@@ -79,7 +80,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task The_status_is_serialised_as_a_name_rather_than_a_number()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societyId = await KandySocietyIdAsync(client);
 
         var response = await client.PostAsJsonAsync("/api/consignments", CanSheet(societyId));
@@ -91,7 +92,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Submitting_without_any_cans_is_rejected_with_400()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societyId = await KandySocietyIdAsync(client);
 
         var response = await client.PostAsJsonAsync(
@@ -105,7 +106,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Submitting_a_can_with_no_quantity_is_rejected_with_400()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societyId = await KandySocietyIdAsync(client);
 
         var response = await client.PostAsJsonAsync("/api/consignments", new
@@ -120,7 +121,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Submitting_a_society_that_is_not_registered_is_rejected_with_422()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var response = await client.PostAsJsonAsync("/api/consignments", CanSheet(Guid.NewGuid()));
 
@@ -134,7 +135,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task An_arrival_time_in_the_future_is_rejected_with_400()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societyId = await KandySocietyIdAsync(client);
 
         // The shared clock sits at 08:00, so an afternoon arrival has not happened yet.
@@ -156,7 +157,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
         using var factory = new IntakeApiFactory();
         factory.Clock.LocalNow = new DateTime(2026, 8, 23, 17, 20, 0);
 
-        var client = factory.CreateClient();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societyId = await KandySocietyIdAsync(client);
 
         var lateArrival = new DateTime(2026, 8, 23, 17, 15, 0);
@@ -176,7 +177,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Fetching_an_unknown_reference_returns_404()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var response = await client.GetAsync("/api/consignments/MCC-20260823-KC-99");
 
@@ -186,7 +187,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Consignments_can_be_listed_and_filtered_over_http()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societyId = await KandySocietyIdAsync(client);
 
         await client.PostAsJsonAsync("/api/consignments", CanSheet(societyId));
@@ -203,7 +204,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Every_registered_consignment_is_persisted_with_its_cans()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societyId = await KandySocietyIdAsync(client);
 
         var response = await client.PostAsJsonAsync("/api/consignments", CanSheet(societyId));
@@ -223,7 +224,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task The_swagger_document_lists_the_consignment_endpoints()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var document = await client.GetStringAsync("/swagger/v1/swagger.json");
 

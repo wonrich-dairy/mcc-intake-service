@@ -1,12 +1,15 @@
-﻿using MccIntakeService.Api.Infrastructure;
-using MccIntakeService.Application.Abstractions;
+﻿using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using Wonrich.Auth.Authorization;
+using Wonrich.Auth.Tokens;
 
 namespace MccIntakeService.Tests.Support;
 
@@ -24,6 +27,13 @@ internal sealed class IntakeApiFactory : WebApplicationFactory<Program>
     private const string PlaceholderConnectionString =
         "Server=localhost;Port=3307;Database=mcc_intake_tests;User=tests;Password=tests";
 
+    /// <summary>Signing key the hosted service validates with and the tests sign with.</summary>
+    private const string TestSigningKey = "wonrich-integration-test-signing-key-0123456789";
+
+    private const string TestIssuer = "wonrich-auth-tests";
+
+    private const string TestAudience = "wonrich-services-tests";
+
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
     /// <summary>The clock the hosted application uses; move it to test cutoff behaviour over HTTP.</summary>
@@ -33,6 +43,9 @@ internal sealed class IntakeApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment(Environments.Development);
         builder.UseSetting("ConnectionStrings:DefaultConnection", PlaceholderConnectionString);
+        builder.UseSetting("Auth:SigningKey", TestSigningKey);
+        builder.UseSetting("Auth:Issuer", TestIssuer);
+        builder.UseSetting("Auth:Audience", TestAudience);
 
         builder.ConfigureServices(services =>
         {
@@ -71,21 +84,46 @@ internal sealed class IntakeApiFactory : WebApplicationFactory<Program>
     }
 
     /// <summary>
-    /// A client that presents the given roles on every request, for the endpoints SCRUM-51
-    /// restricts to MCC Managers and System Administrators.
+    /// A client bearing a genuine JWT for the given role, signed with the same key the hosted
+    /// service validates against, so the tests exercise the real token path.
     /// </summary>
-    public HttpClient CreateClientAs(params string[] roles)
+    public HttpClient CreateClientAs(string role, string facility = "MCC-KANDY")
     {
         var client = CreateClient();
 
-        client.DefaultRequestHeaders.Add(IntakeAuthentication.RoleHeader, string.Join(',', roles));
-        client.DefaultRequestHeaders.Add(IntakeAuthentication.UserHeader, "test-user");
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", IssueTokenFor(role, facility));
 
         return client;
     }
 
     /// <summary>A client authorised to maintain societies — the usual caller in these tests.</summary>
-    public HttpClient CreateManagerClient() => CreateClientAs(IntakeRoles.MccManager);
+    public HttpClient CreateManagerClient() => CreateClientAs(WonrichRoles.MccManager);
+
+    /// <summary>Mints an access token the hosted service will accept.</summary>
+    public static string IssueTokenFor(string role, string facility = "MCC-KANDY") =>
+        IssueTokenSignedWith(TestSigningKey, role, facility);
+
+    /// <summary>
+    /// Mints a token signed with an arbitrary key, so a forged one can be told apart from a
+    /// genuine one in the tests.
+    /// </summary>
+    public static string IssueTokenSignedWith(
+        string signingKey,
+        string role,
+        string facility = "MCC-KANDY")
+    {
+        var issuer = new AccessTokenIssuer(
+            Options.Create(new WonrichJwtOptions
+            {
+                Issuer = TestIssuer,
+                Audience = TestAudience,
+                SigningKey = signingKey
+            }),
+            TimeProvider.System);
+
+        return issuer.Issue(new TokenSubject("test-user-id", "test-user", facility, role)).AccessToken;
+    }
 
     /// <summary>Runs an assertion against the database the hosted application is using.</summary>
     public async Task WithDbContextAsync(Func<MccIntakeDbContext, Task> action)

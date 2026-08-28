@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Application.Consignments;
@@ -7,10 +7,9 @@ using MccIntakeService.Configuration;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using Wonrich.Auth;
+using Wonrich.Auth.Authorization;
 
-// Aliased rather than imported: the namespace also carries a SystemClock, which would collide
-// with the application's own IClock implementation registered below.
-using AuthenticationSchemeOptions = Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,30 +55,22 @@ builder.Services.AddSingleton<IIntakeClock, IntakeClock>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DomainExceptionHandler>();
 
-// Authentication and authorization (SCRUM-51).
-// SCRUM-51 requires that only MCC Managers and System Administrators may maintain societies. The
-// policy below is the enforced form of that rule; the scheme underneath it is a placeholder that
-// trusts a request header, and SCRUM-34 replaces it with real authentication. Only these two
-// registrations move when it does — the policies and the [Authorize] attributes stay as they are.
-if (builder.Environment.IsProduction())
-{
-    // A header-trusting scheme is not a security control. Refuse to start rather than serve
-    // production traffic behind one.
-    throw new InvalidOperationException(
-        $"The interim '{IntakeAuthentication.Scheme}' authentication scheme cannot be used in "
-        + "Production. Real authentication arrives with SCRUM-34; until then this service must "
-        + "only run in Development or Staging.");
-}
+// Authentication and authorization (SCRUM-34).
+// Tokens are issued by the auth service and validated here independently — signature, issuer,
+// audience and expiry — so intake does not call out to authenticate a request. The roles behind
+// the policies are the shared Wonrich set, so a token works across every service unchanged.
+builder.Services.AddWonrichAuthentication(builder.Configuration);
 
-builder.Services
-    .AddAuthentication(IntakeAuthentication.Scheme)
-    .AddScheme<AuthenticationSchemeOptions, IntakeRoleHeaderHandler>(IntakeAuthentication.Scheme, null);
-
-builder.Services
-    .AddAuthorizationBuilder()
-    .AddPolicy(IntakePolicies.ManageSocieties, policy => policy
-        .RequireAuthenticatedUser()
-        .RequireRole(IntakePolicies.ManageSocietiesRoles));
+builder.Services.AddWonrichAuthorization(policies => policies
+    .Add(
+        IntakePolicies.ManageSocieties,
+        WonrichRoles.SystemAdministrator,
+        WonrichRoles.MccManager)
+    .Add(
+        IntakePolicies.RegisterConsignments,
+        WonrichRoles.SystemAdministrator,
+        WonrichRoles.MccManager,
+        WonrichRoles.IntakeOfficer));
 
 // Swagger / OpenAPI — Swashbuckle (SCRUM-49)
 builder.Services.AddEndpointsApiExplorer();

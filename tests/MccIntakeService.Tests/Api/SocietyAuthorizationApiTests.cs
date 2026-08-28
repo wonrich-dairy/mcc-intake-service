@@ -1,9 +1,10 @@
-using System.Net;
+﻿using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Societies;
 using MccIntakeService.Tests.Support;
+using Wonrich.Auth.Authorization;
 
 namespace MccIntakeService.Tests.Api;
 
@@ -50,7 +51,7 @@ public class SocietyAuthorizationApiTests
     public async Task An_intake_officer_is_refused_with_403(string method, string route)
     {
         using var factory = NewFactory();
-        var officer = factory.CreateClientAs(IntakeRoles.IntakeOfficer);
+        var officer = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var response = await SendAsync(officer, method, await ResolveAsync(factory, route));
 
@@ -61,7 +62,7 @@ public class SocietyAuthorizationApiTests
     public async Task An_mcc_manager_may_register_a_society()
     {
         using var factory = NewFactory();
-        var manager = factory.CreateClientAs(IntakeRoles.MccManager);
+        var manager = factory.CreateClientAs(WonrichRoles.MccManager);
 
         var response = await manager.PostAsJsonAsync("/api/societies", NewSociety());
 
@@ -72,29 +73,51 @@ public class SocietyAuthorizationApiTests
     public async Task A_system_administrator_may_register_a_society()
     {
         using var factory = NewFactory();
-        var administrator = factory.CreateClientAs(IntakeRoles.SystemAdministrator);
+        var administrator = factory.CreateClientAs(WonrichRoles.SystemAdministrator);
 
         var response = await administrator.PostAsJsonAsync("/api/societies", NewSociety("NV"));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
-    [Fact]
-    public async Task A_caller_holding_several_roles_is_allowed_on_the_strength_of_one()
+    [Theory]
+    [InlineData(WonrichRoles.QualityAnalyst)]
+    [InlineData(WonrichRoles.BowserOperator)]
+    [InlineData(WonrichRoles.FactoryIntakeOfficer)]
+    [InlineData(WonrichRoles.ProductionManager)]
+    public async Task No_other_configured_role_may_maintain_societies(string role)
     {
         using var factory = NewFactory();
-        var client = factory.CreateClientAs(IntakeRoles.IntakeOfficer, IntakeRoles.MccManager);
+        var client = factory.CreateClientAs(role);
 
         var response = await client.PostAsJsonAsync("/api/societies", NewSociety("HP"));
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_token_signed_with_the_wrong_key_is_refused()
+    {
+        using var factory = NewFactory();
+        var client = factory.CreateClient();
+
+        // Signature validation is what stops a forged token, so prove it independently of role.
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            IntakeApiFactory.IssueTokenSignedWith(
+                "a-different-key-that-is-long-enough-0123456789",
+                WonrichRoles.MccManager));
+
+        var response = await client.PostAsJsonAsync("/api/societies", NewSociety("XX"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
     public async Task Reading_the_society_list_stays_open_to_an_intake_officer()
     {
         using var factory = NewFactory();
-        var officer = factory.CreateClientAs(IntakeRoles.IntakeOfficer);
+        var officer = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         // The officer has to see the list to pick a society when registering a consignment.
         var societies = await officer.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
