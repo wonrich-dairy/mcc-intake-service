@@ -1,6 +1,7 @@
-using MccIntakeService.Domain.Common;
+﻿using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Consignments;
 using MccIntakeService.Domain.Societies;
+using MccIntakeService.Tests.Support;
 
 namespace MccIntakeService.Tests.Domain;
 
@@ -9,13 +10,14 @@ public class ConsignmentCanTests
     private static readonly Society Kandy =
         new(Guid.NewGuid(), "KC", "Kandy Co-operative Dairy Society", "KC");
 
-    private static Consignment RegisterWithSingleCan(int canNumber, decimal quantityLitres) =>
+    private static Consignment RegisterWithSingleCan(int canNumber, decimal quantityKg) =>
         Consignment.Register(
             Guid.NewGuid(),
             "MCC-20260823-KC-01",
             Kandy,
             new DateTime(2026, 8, 23, 7, 0, 0),
-            [new CanEntry(canNumber, quantityLitres)],
+            [new CanEntry(canNumber, quantityKg)],
+            TestIntake.DensityKgPerLitre,
             new TimeOnly(16, 0),
             new DateTime(2026, 8, 23, 8, 0, 0),
             DateTimeOffset.UtcNow);
@@ -31,9 +33,9 @@ public class ConsignmentCanTests
     [Theory]
     [InlineData(0)]
     [InlineData(-12.5)]
-    public void A_can_must_carry_a_quantity_greater_than_zero(decimal quantityLitres)
+    public void A_can_must_carry_a_quantity_greater_than_zero(decimal quantityKg)
     {
-        var exception = Assert.Throws<DomainValidationException>(() => RegisterWithSingleCan(1, quantityLitres));
+        var exception = Assert.Throws<DomainValidationException>(() => RegisterWithSingleCan(1, quantityKg));
 
         Assert.Contains("greater than zero", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -42,7 +44,7 @@ public class ConsignmentCanTests
     public void A_can_quantity_beyond_the_physical_limit_is_rejected()
     {
         var exception = Assert.Throws<DomainValidationException>(
-            () => RegisterWithSingleCan(1, ConsignmentCan.MaxQuantityLitres + 0.01m));
+            () => RegisterWithSingleCan(1, ConsignmentCan.MaxQuantityKg + 0.01m));
 
         Assert.Contains("exceeds", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -52,7 +54,7 @@ public class ConsignmentCanTests
     {
         var consignment = RegisterWithSingleCan(1, 40.456m);
 
-        Assert.Equal(40.46m, consignment.Cans.Single().QuantityLitres);
+        Assert.Equal(40.46m, consignment.Cans.Single().QuantityKg);
     }
 
     [Fact]
@@ -64,6 +66,7 @@ public class ConsignmentCanTests
             Kandy,
             new DateTime(2026, 8, 23, 7, 0, 0),
             [new CanEntry(5, 10m), new CanEntry(2, 20m), new CanEntry(9, 30m)],
+            TestIntake.DensityKgPerLitre,
             new TimeOnly(16, 0),
             new DateTime(2026, 8, 23, 8, 0, 0),
             DateTimeOffset.UtcNow);

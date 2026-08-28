@@ -119,7 +119,7 @@ public class SocietyManagementApiTests
         await client.PostAsJsonAsync("/api/consignments", new
         {
             societyId = kandy.Id,
-            cans = new[] { new { canNumber = 1, quantityLitres = 40m } }
+            cans = new[] { new { canNumber = 1, quantityKg = 40m } }
         });
 
         var response = await client.PutAsJsonAsync($"/api/societies/{kandy.Id}", new

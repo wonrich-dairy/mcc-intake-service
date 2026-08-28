@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using MccIntakeService.Domain.Consignments;
 
 namespace MccIntakeService.Api.Contracts;
@@ -30,7 +30,7 @@ public sealed class RegisterConsignmentRequest
 
     /// <summary>Maps the request onto the domain can entries.</summary>
     public IReadOnlyCollection<CanEntry> ToCanEntries() =>
-        Cans.Select(can => new CanEntry(can.CanNumber, can.QuantityLitres)).ToList();
+        Cans.Select(can => new CanEntry(can.CanNumber, can.QuantityKg)).ToList();
 }
 
 /// <summary>A single can on the consignment sheet.</summary>
@@ -44,8 +44,11 @@ public sealed class RegisterConsignmentCanRequest
     [Range(1, 999, ErrorMessage = "Can number must be between 1 and 999.")]
     public int CanNumber { get; set; }
 
-    /// <summary>Litres of milk received in this can.</summary>
-    /// <example>40.5</example>
-    [Range(0.01, 1000, ErrorMessage = "Quantity must be greater than zero and no more than 1000 litres.")]
-    public decimal QuantityLitres { get; set; }
+    /// <summary>
+    /// Kilograms of milk weighed in this can. Litres are derived from this using the centre's
+    /// configured milk density and returned on the response; they are not submitted.
+    /// </summary>
+    /// <example>41.7</example>
+    [Range(0.01, 1000, ErrorMessage = "Quantity must be greater than zero and no more than 1000 kilograms.")]
+    public decimal QuantityKg { get; set; }
 }

@@ -1,8 +1,10 @@
-using MccIntakeService.Application.Abstractions;
+﻿using MccIntakeService.Application.Abstractions;
+using MccIntakeService.Configuration;
 using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Consignments;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace MccIntakeService.Application.Consignments;
 
@@ -20,17 +22,20 @@ public sealed class ConsignmentService : IConsignmentService
     private readonly MccIntakeDbContext _dbContext;
     private readonly IConsignmentReferenceGenerator _referenceGenerator;
     private readonly IIntakeClock _clock;
+    private readonly IntakeOptions _options;
     private readonly ILogger<ConsignmentService> _logger;
 
     public ConsignmentService(
         MccIntakeDbContext dbContext,
         IConsignmentReferenceGenerator referenceGenerator,
         IIntakeClock clock,
+        IOptions<IntakeOptions> options,
         ILogger<ConsignmentService> logger)
     {
         _dbContext = dbContext;
         _referenceGenerator = referenceGenerator;
         _clock = clock;
+        _options = options.Value;
         _logger = logger;
     }
 
@@ -64,6 +69,7 @@ public sealed class ConsignmentService : IConsignmentService
                 society,
                 arrivalAtLocal,
                 command.Cans,
+                _options.MilkDensityKgPerLitre,
                 cutoff,
                 nowLocal,
                 _clock.UtcNow,
@@ -191,7 +197,7 @@ public sealed class ConsignmentService : IConsignmentService
     {
         var cans = consignment.Cans
             .OrderBy(can => can.CanNumber)
-            .Select(can => new ConsignmentCanView(can.CanLabel, can.CanNumber, can.QuantityLitres))
+            .Select(can => new ConsignmentCanView(can.CanLabel, can.CanNumber, can.QuantityKg, can.QuantityLitres))
             .ToList();
 
         return new ConsignmentView(
@@ -203,6 +209,7 @@ public sealed class ConsignmentService : IConsignmentService
             consignment.ArrivalAtLocal,
             consignment.ArrivalDate,
             consignment.Status,
+            consignment.TotalQuantityKg,
             consignment.TotalQuantityLitres,
             cans.Count,
             consignment.RegisteredAtUtc,

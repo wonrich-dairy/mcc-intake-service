@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -37,8 +37,8 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
         arrivalAtLocal = arrival,
         cans = new[]
         {
-            new { canNumber = 1, quantityLitres = 40.5m },
-            new { canNumber = 2, quantityLitres = 39.5m }
+            new { canNumber = 1, quantityKg = 40.5m },
+            new { canNumber = 2, quantityKg = 39.5m }
         }
     };
 
@@ -56,7 +56,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
 
         Assert.NotNull(created);
         Assert.StartsWith("MCC-", created.Reference, StringComparison.Ordinal);
-        Assert.Equal(80m, created.TotalQuantityLitres);
+        Assert.Equal(80m, created.TotalQuantityKg);
         Assert.Equal(["KC 01", "KC 02"], created.Cans.Select(can => can.CanLabel));
         Assert.Contains(created.Reference, response.Headers.Location!.ToString(), StringComparison.Ordinal);
     }
@@ -111,7 +111,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
         var response = await client.PostAsJsonAsync("/api/consignments", new
         {
             societyId,
-            cans = new[] { new { canNumber = 1, quantityLitres = 0m } }
+            cans = new[] { new { canNumber = 1, quantityKg = 0m } }
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -216,7 +216,7 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
                 .SingleAsync(consignment => consignment.Reference == created!.Reference);
 
             Assert.Equal(2, stored.Cans.Count);
-            Assert.Equal(80m, stored.TotalQuantityLitres);
+            Assert.Equal(80m, stored.TotalQuantityKg);
         });
     }
 

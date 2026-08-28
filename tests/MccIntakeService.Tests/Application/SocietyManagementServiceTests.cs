@@ -1,11 +1,13 @@
-using MccIntakeService.Application.Consignments;
+﻿using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.Societies;
+using MccIntakeService.Configuration;
 using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Consignments;
 using MccIntakeService.Infrastructure.Persistence;
 using MccIntakeService.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace MccIntakeService.Tests.Application;
 
@@ -279,6 +281,7 @@ public class SocietyManagementServiceTests : IDisposable
             context,
             new ConsignmentReferenceGenerator(context),
             new FakeIntakeClock(new DateTime(2026, 8, 23, 8, 0, 0)),
+            Options.Create(new IntakeOptions()),
             NullLogger<ConsignmentService>.Instance);
 
         await service.RegisterAsync(new RegisterConsignmentCommand(societyId, [new CanEntry(1, 40m)]));

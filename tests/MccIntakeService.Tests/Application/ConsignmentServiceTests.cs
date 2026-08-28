@@ -1,10 +1,12 @@
-using MccIntakeService.Application.Consignments;
+﻿using MccIntakeService.Application.Consignments;
+using MccIntakeService.Configuration;
 using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Consignments;
 using MccIntakeService.Infrastructure.Persistence;
 using MccIntakeService.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace MccIntakeService.Tests.Application;
 
@@ -22,6 +24,7 @@ public class ConsignmentServiceTests : IDisposable
             context,
             new ConsignmentReferenceGenerator(context),
             _clock,
+            Options.Create(new IntakeOptions()),
             NullLogger<ConsignmentService>.Instance);
 
         return (context, service);
@@ -44,7 +47,7 @@ public class ConsignmentServiceTests : IDisposable
         var view = await service.RegisterAsync(CommandFor(society.Id));
 
         Assert.Equal("MCC-20260823-KC-01", view.Reference);
-        Assert.Equal(80m, view.TotalQuantityLitres);
+        Assert.Equal(80m, view.TotalQuantityKg);
         Assert.Equal(2, view.CanCount);
         Assert.Equal(["KC 01", "KC 02"], view.Cans.Select(can => can.CanLabel));
         Assert.Equal("KC", view.SocietyCode);
@@ -56,7 +59,7 @@ public class ConsignmentServiceTests : IDisposable
             .SingleAsync();
 
         Assert.Equal("MCC-20260823-KC-01", stored.Reference);
-        Assert.Equal(80m, stored.TotalQuantityLitres);
+        Assert.Equal(80m, stored.TotalQuantityKg);
         Assert.Equal(2, stored.Cans.Count);
     }
 

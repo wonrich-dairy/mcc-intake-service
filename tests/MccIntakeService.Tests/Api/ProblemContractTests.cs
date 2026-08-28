@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MccIntakeService.Application.Societies;
@@ -83,7 +83,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
         {
             societyId = societies!.First().Id,
             arrivalAtLocal = new DateTime(2026, 8, 23, 21, 13, 0),
-            cans = new[] { new { canNumber = 1, quantityLitres = 40m } }
+            cans = new[] { new { canNumber = 1, quantityKg = 40m } }
         });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
@@ -104,7 +104,7 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
         var response = await client.PostAsJsonAsync("/api/consignments", new
         {
             societyId = Guid.NewGuid(),
-            cans = new[] { new { canNumber = 1, quantityLitres = 40m } }
+            cans = new[] { new { canNumber = 1, quantityKg = 40m } }
         });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);

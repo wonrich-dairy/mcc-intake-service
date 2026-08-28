@@ -1,6 +1,7 @@
-using MccIntakeService.Domain.Common;
+﻿using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Consignments;
 using MccIntakeService.Domain.Societies;
+using MccIntakeService.Tests.Support;
 
 namespace MccIntakeService.Tests.Domain;
 
@@ -29,6 +30,7 @@ public class ConsignmentTests
             society ?? Kandy,
             arrivalAtLocal,
             cans ?? [new CanEntry(1, 40.5m), new CanEntry(2, 39.5m)],
+            TestIntake.DensityKgPerLitre,
             Cutoff,
             now ?? NowLocal,
             new DateTimeOffset(arrivalAtLocal, TimeSpan.FromMinutes(330)));
@@ -39,7 +41,7 @@ public class ConsignmentTests
     {
         var consignment = RegisterWith([new CanEntry(1, 40.5m), new CanEntry(2, 39.5m), new CanEntry(3, 20m)]);
 
-        Assert.Equal(100m, consignment.TotalQuantityLitres);
+        Assert.Equal(100m, consignment.TotalQuantityKg);
         Assert.Equal(3, consignment.Cans.Count);
     }
 
@@ -97,6 +99,7 @@ public class ConsignmentTests
             Kandy,
             MorningArrival,
             [new CanEntry(1, 40m)],
+            TestIntake.DensityKgPerLitre,
             Cutoff,
             NowLocal,
             DateTimeOffset.UtcNow));
@@ -168,6 +171,7 @@ public class ConsignmentTests
             null!,
             MorningArrival,
             [new CanEntry(1, 40m)],
+            TestIntake.DensityKgPerLitre,
             Cutoff,
             NowLocal,
             DateTimeOffset.UtcNow));
