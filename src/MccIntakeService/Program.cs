@@ -1,18 +1,53 @@
+﻿using System.Text.Json.Serialization;
+using MccIntakeService.Api.Infrastructure;
+using MccIntakeService.Application.Abstractions;
+using MccIntakeService.Application.Consignments;
+using MccIntakeService.Application.Societies;
+using MccIntakeService.Configuration;
+using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
-using MccIntakeService.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddControllers();
+// Add services to the container. Enums travel as their names so the API stays readable
+// and does not break when a new lifecycle state is inserted.
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-// Entity Framework — MySQL (SCRUM-36)
+// Centre operating parameters: daily intake cutoff and the zone its wall clock runs in (SCRUM-6).
+builder.Services
+    .AddOptions<IntakeOptions>()
+    .Bind(builder.Configuration.GetSection(IntakeOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// Persistence (SCRUM-36). The connection string is supplied per environment; the local
+// development value lives in appsettings.Development.json, which is not committed.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<MccIntakeDbContext>(options =>
-    options.UseMySQL(connectionString ?? throw new InvalidOperationException(
-        "Connection string 'DefaultConnection' not found. " +
-        "Set it in appsettings.json, appsettings.Development.json, or via environment variable.")));
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    // Registering the context conditionally used to leave the services that depend on it
+    // unsatisfiable, so start-up failed with a DI resolution dump that never mentions the real
+    // cause. Fail here instead, naming the setting that is missing.
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection is not configured. Copy "
+        + "src/MccIntakeService/appsettings.Development.template.json to appsettings.Development.json "
+        + "for local development, or set ConnectionStrings__DefaultConnection in the environment.");
+}
+
+builder.Services.AddDbContext<MccIntakeDbContext>(options => options.UseMySQL(connectionString));
+
+builder.Services.AddScoped<IConsignmentReferenceGenerator, ConsignmentReferenceGenerator>();
+builder.Services.AddScoped<IConsignmentService, ConsignmentService>();
+builder.Services.AddScoped<ISocietyService, SocietyService>();
+builder.Services.AddSingleton<IClock, SystemClock>();
+builder.Services.AddSingleton<IIntakeClock, IntakeClock>();
+
+// Domain rule violations become ProblemDetails rather than 500s.
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<DomainExceptionHandler>();
 
 // Swagger / OpenAPI — Swashbuckle (SCRUM-49)
 builder.Services.AddEndpointsApiExplorer();
@@ -36,12 +71,20 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// Auto-apply pending EF migrations in Development and Staging (SCRUM-36)
+app.UseExceptionHandler();
+
+// Auto-apply pending EF migrations in Development and Staging (SCRUM-36).
+// Guarded on the provider: the migrations are MySQL-specific, and the integration tests host this
+// same pipeline over SQLite, where they cannot be applied and the schema is created directly.
 if (!app.Environment.IsProduction())
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<MccIntakeDbContext>();
-    db.Database.Migrate();
+
+    if (db.Database.ProviderName?.Contains("MySql", StringComparison.OrdinalIgnoreCase) == true)
+    {
+        db.Database.Migrate();
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -63,3 +106,11 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+/// <summary>Exposed so the integration tests can host the application through WebApplicationFactory.</summary>
+public partial class Program
+{
+    protected Program()
+    {
+    }
+}

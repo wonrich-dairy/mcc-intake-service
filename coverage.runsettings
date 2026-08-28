@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <!--
+            EF Core migrations and the design-time context factory are generated or tooling-only
+            code that never runs under test, so they are excluded from the coverage figure the
+            Definition of Done is measured against.
+          -->
+          <Exclude>[MccIntakeService]MccIntakeService.Infrastructure.Persistence.Migrations.*,[MccIntakeService]MccIntakeService.Infrastructure.Persistence.MccIntakeDbContextFactory</Exclude>
+          <ExcludeByFile>**/Infrastructure/Persistence/Migrations/**/*.cs</ExcludeByFile>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
