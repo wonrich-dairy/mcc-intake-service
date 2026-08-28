@@ -46,6 +46,7 @@ excludes generated EF migrations from the coverage figure.
 | `Database:ServerVersion` | `8.0.36-mysql` | MySQL version the schema targets; configured rather than auto-detected so start-up does not depend on the server being reachable. |
 | `Intake:DailyCutoff` | `16:00` | Local time after which milk is no longer accepted. |
 | `Intake:TimeZone` | `Asia/Colombo` | Zone the centre's wall clock and intake dates run on. |
+| `Intake:MilkDensityKgPerLitre` | `1.03` | Density used to derive litres from the weight recorded at the gate. |
 
 ## API
 | Method | Route | Purpose |
@@ -72,12 +73,25 @@ Domain rule failures return `application/problem+json` carrying a stable `code`:
 | `409` | A society code is already in use; the body carries `conflictingCode`. |
 | `422` | A well-formed request referencing something absent, or intake closed for the day (`cutoff`, `arrivalTime`). |
 
+### Quantities
+Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are
+derived from that weight using `Intake:MilkDensityKgPerLitre` and returned alongside it; they are
+never submitted. Both figures are stored rather than litres being recomputed on read, so retuning
+the density later cannot restate quantities already recorded. Consignment totals are summed from
+the can breakdown, so a total always equals the cans it lists.
+
 ### Authorization
-`Api/Infrastructure/IntakeRoles.cs` declares the roles and policies the service recognises, and
-the endpoints document which roles they require. **Nothing is enforced yet** — enforcement needs
-an authentication scheme, which is SCRUM-34. When that lands, registering the scheme and applying
-`[Authorize(Policy = IntakePolicies.ManageSocieties)]` to the society write endpoints is the
-whole change.
+`Api/Infrastructure/IntakeRoles.cs` declares the roles and policies the service recognises.
+`IntakePolicies.ManageSocieties` — satisfied by `MccManager` or `SystemAdministrator` — is
+enforced on the four society write endpoints, which answer `401` when unauthenticated and `403`
+when the caller holds neither role. Reads stay open, because an intake officer has to list
+societies to pick one at the gate.
+
+The identity behind those roles currently comes from `IntakeRoleHeaderHandler`, which reads the
+`X-Intake-Role` header and trusts it. **That is a placeholder, not a security control**, so
+start-up refuses the Production environment outright. SCRUM-34 replaces it with real
+authentication; only the two registrations in `Program.cs` change, because a JWT bearer handler
+yields the same role claims. The policies and the `[Authorize]` attributes stay as they are.
 
 ## Database migrations
 ```powershell
