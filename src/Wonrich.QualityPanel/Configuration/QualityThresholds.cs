@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace Wonrich.QualityPanel.Configuration;
 
@@ -26,10 +26,6 @@ public sealed class QualityThresholds
     /// <summary>Lowest acceptable corrected CLR.</summary>
     [Range(0, 40, ErrorMessage = "QualityThresholds:MinimumCorrectedClr must be between 0 and 40.")]
     public decimal MinimumCorrectedClr { get; set; } = 26.0m;
-
-    /// <summary>Highest acceptable temperature at the gate, in °C.</summary>
-    [Range(0, 50, ErrorMessage = "QualityThresholds:MaximumTemperatureCelsius must be between 0 and 50.")]
-    public decimal MaximumTemperatureCelsius { get; set; } = 10.0m;
 
     /// <summary>The weakest stability grade still accepted.</summary>
     public StabilityGrade WorstAcceptableStability { get; set; } = StabilityGrade.MarginallyStable;

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Wonrich.Auth;
 using Wonrich.Auth.Authorization;
+using Wonrich.QualityPanel;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -71,6 +72,10 @@ builder.Services.AddWonrichAuthorization(policies => policies
         WonrichRoles.SystemAdministrator,
         WonrichRoles.MccManager,
         WonrichRoles.IntakeOfficer));
+
+// Quality test panel (SCRUM-50). Consumed from the shared library rather than reimplemented,
+// so the gate and the lab cannot reach different verdicts on the same readings.
+builder.Services.AddQualityPanel(builder.Configuration);
 
 // Swagger / OpenAPI — Swashbuckle (SCRUM-49)
 builder.Services.AddEndpointsApiExplorer();

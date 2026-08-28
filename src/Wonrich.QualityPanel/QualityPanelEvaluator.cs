@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using Wonrich.QualityPanel.Configuration;
 
 namespace Wonrich.QualityPanel;
@@ -6,7 +6,10 @@ namespace Wonrich.QualityPanel;
 /// <summary>The readings taken for one sample.</summary>
 /// <param name="FatPercent">Fat percentage from the butyrometer.</param>
 /// <param name="RawLactometerReading">Lactometer reading as taken, before correction.</param>
-/// <param name="TemperatureCelsius">Sample temperature when the lactometer was read.</param>
+/// <param name="TemperatureCelsius">
+/// Milk temperature when the lactometer was read, used to correct the reading. This is not the
+/// arrival temperature: the two are different measurements and must not be conflated.
+/// </param>
 /// <param name="AlcoholOutcomes">Outcome of each cascade stage that was performed.</param>
 /// <param name="KqColour">Shade the KQ dye settled at.</param>
 public sealed record PanelReadings(
@@ -89,14 +92,6 @@ public sealed class QualityPanelEvaluator : IQualityPanelEvaluator
             failures.Add(new PanelFailure(
                 nameof(composition.Snf),
                 $"SNF is {composition.Snf}, below the minimum {_thresholds.MinimumSnf}."));
-        }
-
-        if (readings.TemperatureCelsius > _thresholds.MaximumTemperatureCelsius)
-        {
-            failures.Add(new PanelFailure(
-                "Temperature",
-                $"Temperature is {readings.TemperatureCelsius} °C, above the maximum "
-                + $"{_thresholds.MaximumTemperatureCelsius} °C."));
         }
 
         // Grades run best to worst, so a grade beyond the configured worst-acceptable is a fail.

@@ -52,6 +52,11 @@ excludes generated EF migrations from the coverage figure.
 | `Auth:SigningKey` | *(empty)* | Symmetric signing key, at least 32 characters. Supplied per environment; never committed. |
 | `Auth:AccessTokenMinutes` | `60` | Access token lifetime. |
 | `Auth:RefreshTokenDays` | `7` | Refresh token lifetime. |
+| `QualityThresholds:MinimumFatPercent` | `3.5` | Lowest acceptable fat percentage. |
+| `QualityThresholds:MinimumSnf` | `8.5` | Lowest acceptable solids-not-fat. |
+| `QualityThresholds:MinimumCorrectedClr` | `26.0` | Lowest acceptable corrected CLR. |
+| `QualityThresholds:WorstAcceptableStability` | `MarginallyStable` | Weakest alcohol-cascade grade still accepted. |
+| `QualityThresholds:WorstAcceptableKqColour` | `Green` | Furthest-reduced KQ shade still accepted. |
 
 ## API
 | Method | Route | Purpose |
@@ -77,6 +82,24 @@ Domain rule failures return `application/problem+json` carrying a stable `code`:
 | `404` | A record addressed by the route does not exist. |
 | `409` | A society code is already in use; the body carries `conflictingCode`. |
 | `422` | A well-formed request referencing something absent, or intake closed for the day (`cutoff`, `arrivalTime`). |
+
+### Quality test panel
+`src/Wonrich.QualityPanel` holds the panel logic once (SCRUM-50) so the MCC gate and the lab
+cannot drift apart on what the same readings mean. It is a packable, versioned library consumed
+by reference, never copied.
+
+- **CLR correction** — the lactometer is calibrated at 27 °C, so a reading is corrected by
+  0.2 per °C: added above that temperature, subtracted below. SNF is always derived from the
+  *corrected* CLR.
+- **Composition** — `SNF = (FAT × 0.22) + (CLR × 0.25) + 0.72`, and `TS = SNF + FAT`.
+- **Alcohol cascade** — a state machine running 80% → 75% → 68% → clot-on-boiling, halting at the
+  first negative. A negative means no clotting, and since each rung is gentler than the last, the
+  remaining stages would pass too.
+- **KQ colour** — a fixed enumeration running best (`Blue`) to worst (`White`). The numeric values
+  are stored contract; new shades go on the end.
+
+Thresholds are configuration, not constants: they are a commercial and seasonal decision the
+centre retunes without a release. The formulae stay in code, because they are properties of milk.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are
