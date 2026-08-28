@@ -1,7 +1,9 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Wonrich.Auth;
+using Wonrich.Auth.Authorization;
 using Wonrich.AuthService.Application;
+using Wonrich.AuthService.Controllers;
 using Wonrich.AuthService.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,13 +29,16 @@ builder.Services.AddDbContext<AuthDbContext>(options => options.UseMySql(
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddProblemDetails();
 
 // This service both issues and validates tokens: it signs them here, and protects its own
 // future administrative endpoints with the same shared validation every other service uses.
 builder.Services.AddWonrichAuthentication(builder.Configuration);
-builder.Services.AddWonrichAuthorization();
+// Account administration is the System Administrator's alone (SCRUM-45).
+builder.Services.AddWonrichAuthorization(policies => policies
+    .Add(AuthPolicies.ManageUsers, WonrichRoles.SystemAdministrator));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

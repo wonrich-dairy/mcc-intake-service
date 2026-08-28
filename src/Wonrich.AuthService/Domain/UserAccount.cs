@@ -64,7 +64,18 @@ public class UserAccount
         IsActive && new PasswordHash(PasswordHash).Matches(password);
 
     /// <summary>Moves the account to a different configured role.</summary>
+    /// <remarks>A user holds exactly one role at a time, so this replaces rather than adds.</remarks>
     public void ChangeRole(string role) => Role = EnsureConfigured(role);
+
+    /// <summary>Corrects the display name. The username itself never moves.</summary>
+    public void Rename(string displayName) =>
+        DisplayName = Require(displayName, MaxDisplayNameLength, nameof(displayName));
+
+    /// <summary>Reassigns the account to a different facility, or to none.</summary>
+    public void MoveTo(string? facility) =>
+        Facility = string.IsNullOrWhiteSpace(facility)
+            ? null
+            : Require(facility, MaxFacilityLength, nameof(facility));
 
     /// <summary>Replaces the stored password.</summary>
     public void ChangePassword(string password) => PasswordHash = Domain.PasswordHash.From(password).Value;
