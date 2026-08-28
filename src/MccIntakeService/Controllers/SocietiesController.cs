@@ -1,7 +1,8 @@
-using MccIntakeService.Api.Contracts;
+﻿using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Societies;
 using MccIntakeService.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MccIntakeService.Controllers;
@@ -77,15 +78,19 @@ public class SocietiesController : ControllerBase
 
     /// <summary>Registers a new supplying society.</summary>
     /// <remarks>
-    /// Restricted to MCC Managers and System Administrators. That restriction is declared in
-    /// <see cref="IntakePolicies.ManageSocieties"/> but is not enforced until authentication
-    /// lands with SCRUM-34.
+    /// Restricted to MCC Managers and System Administrators by
+    /// <see cref="IntakePolicies.ManageSocieties"/>.
     /// </remarks>
     /// <response code="201">The society was registered.</response>
     /// <response code="400">The submitted details are incomplete or invalid.</response>
+    /// <response code="401">The caller is not authenticated.</response>
+    /// <response code="403">The caller may not maintain societies.</response>
     /// <response code="409">A society already uses that code.</response>
     [HttpPost]
+    [Authorize(Policy = IntakePolicies.ManageSocieties)]
     [ProducesResponseType(typeof(SocietyView), StatusCodes.Status201Created, "application/json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType(typeof(DuplicateCodeProblemDetails), StatusCodes.Status409Conflict, ProblemJson)]
     public async Task<ActionResult<SocietyView>> Create(
@@ -108,14 +113,19 @@ public class SocietiesController : ControllerBase
     /// <remarks>
     /// The code can only be moved while no consignments exist against the society, because it is
     /// baked into every reference already issued. Restricted to MCC Managers and System
-    /// Administrators once SCRUM-34 lands.
+    /// Administrators by <see cref="IntakePolicies.ManageSocieties"/>.
     /// </remarks>
     /// <response code="200">The society was updated.</response>
     /// <response code="400">The details are invalid, or the code is frozen by existing consignments.</response>
+    /// <response code="401">The caller is not authenticated.</response>
+    /// <response code="403">The caller may not maintain societies.</response>
     /// <response code="404">No society carries that identifier.</response>
     /// <response code="409">Another society already uses that code.</response>
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = IntakePolicies.ManageSocieties)]
     [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
     [ProducesResponseType(typeof(DuplicateCodeProblemDetails), StatusCodes.Status409Conflict, ProblemJson)]
@@ -137,14 +147,20 @@ public class SocietiesController : ControllerBase
     /// <summary>Retires a society so it can no longer be selected for new consignments.</summary>
     /// <remarks>
     /// The society is kept, not deleted: historical consignments must keep resolving to it.
-    /// Restricted to MCC Managers and System Administrators once SCRUM-34 lands.
+    /// Restricted to MCC Managers and System Administrators by
+    /// <see cref="IntakePolicies.ManageSocieties"/>.
     /// </remarks>
     /// <param name="id">Society identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <response code="200">The society was retired.</response>
+    /// <response code="401">The caller is not authenticated.</response>
+    /// <response code="403">The caller may not maintain societies.</response>
     /// <response code="404">No society carries that identifier.</response>
     [HttpPost("{id:guid}/deactivate")]
+    [Authorize(Policy = IntakePolicies.ManageSocieties)]
     [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
     public async Task<ActionResult<SocietyView>> Deactivate(Guid id, CancellationToken cancellationToken)
     {
@@ -152,12 +168,21 @@ public class SocietiesController : ControllerBase
     }
 
     /// <summary>Returns a retired society to service.</summary>
+    /// <remarks>
+    /// Restricted to MCC Managers and System Administrators by
+    /// <see cref="IntakePolicies.ManageSocieties"/>.
+    /// </remarks>
     /// <param name="id">Society identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <response code="200">The society is active again.</response>
+    /// <response code="401">The caller is not authenticated.</response>
+    /// <response code="403">The caller may not maintain societies.</response>
     /// <response code="404">No society carries that identifier.</response>
     [HttpPost("{id:guid}/reactivate")]
+    [Authorize(Policy = IntakePolicies.ManageSocieties)]
     [ProducesResponseType(typeof(SocietyView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
     public async Task<ActionResult<SocietyView>> Reactivate(Guid id, CancellationToken cancellationToken)
     {

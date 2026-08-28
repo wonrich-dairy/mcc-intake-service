@@ -5,12 +5,10 @@ namespace MccIntakeService.Api.Infrastructure;
 /// Administrators may create or edit societies.
 /// </summary>
 /// <remarks>
-/// These names are declared here, and the endpoints that need them are annotated in Swagger,
-/// but nothing is <em>enforced</em> yet: enforcement needs an authentication scheme, which is
-/// SCRUM-34. When that lands, registering the scheme and applying
-/// <c>[Authorize(Policy = IntakePolicies.ManageSocieties)]</c> to the write endpoints on
-/// <see cref="Controllers.SocietiesController"/> is the whole change — the role names and the
-/// documented contract do not move.
+/// These names back <see cref="IntakePolicies.ManageSocieties"/>, which is enforced on the write
+/// endpoints of <see cref="Controllers.SocietiesController"/>. The identity carrying them is
+/// currently established by <see cref="IntakeRoleHeaderHandler"/>, a placeholder that SCRUM-34
+/// replaces with real authentication; the role names and the policy survive that change.
 /// </remarks>
 public static class IntakeRoles
 {
