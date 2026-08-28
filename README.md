@@ -95,6 +95,17 @@ decide whether a request is authentic.
 | --- | --- | --- |
 | `POST` | `/api/auth/login` | Exchange a username and password for an access and refresh token. |
 | `POST` | `/api/auth/refresh` | Exchange a refresh token for a fresh pair. |
+| `GET` | `/api/users` | List accounts; `search`, `role`, `activeOnly` (SCRUM-45). |
+| `GET` | `/api/users/roles` | The seven assignable roles, for the role picker. |
+| `GET` | `/api/users/{id}` | Fetch one account. |
+| `POST` | `/api/users` | Create an account. |
+| `PUT` | `/api/users/{id}` | Amend an account, optionally resetting its password. |
+| `POST` | `/api/users/{id}/deactivate` | Deactivate an account and revoke its refresh tokens. |
+| `POST` | `/api/users/{id}/reactivate` | Return a deactivated account to service. |
+
+Account administration is restricted to `SystemAdministrator`. Accounts are deactivated, never
+deleted, so sign-in history keeps resolving to the account that made it, and a username cannot be
+changed once created for the same reason. There is deliberately no `DELETE`.
 
 Seven roles are configured in `Wonrich.Auth/Authorization/WonrichRoles.cs`, and each user holds
 exactly one. `Api/Infrastructure/IntakeRoles.cs` holds only this service's mapping of roles to

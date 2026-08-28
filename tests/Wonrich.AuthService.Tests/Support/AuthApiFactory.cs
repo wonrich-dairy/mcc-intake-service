@@ -1,9 +1,12 @@
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
+using Wonrich.Auth.Tokens;
 using Wonrich.Auth.Authorization;
 using Wonrich.AuthService.Domain;
 using Wonrich.AuthService.Infrastructure;
@@ -48,6 +51,33 @@ internal sealed class AuthApiFactory : WebApplicationFactory<Program>
 
             context.SaveChanges();
         });
+    }
+
+    /// <summary>A client bearing a genuine token for the given role.</summary>
+    public HttpClient CreateClientAs(string role, string facility = "MCC-KANDY")
+    {
+        var client = CreateClient();
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            IssueTokenFor(role, facility));
+
+        return client;
+    }
+
+    /// <summary>Mints an access token this host will accept.</summary>
+    public static string IssueTokenFor(string role, string facility = "MCC-KANDY")
+    {
+        var issuer = new AccessTokenIssuer(
+            Options.Create(new WonrichJwtOptions
+            {
+                Issuer = "wonrich-auth-tests",
+                Audience = "wonrich-services-tests",
+                SigningKey = AuthTestHost.SigningKey
+            }),
+            TimeProvider.System);
+
+        return issuer.Issue(new TokenSubject("admin-id", "admin", facility, role)).AccessToken;
     }
 
     /// <summary>Strips the MySQL registration so SQLite is the only provider in play.</summary>
