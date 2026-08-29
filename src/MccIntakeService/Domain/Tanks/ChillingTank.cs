@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.Common;
+﻿using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Consignments;
 
 namespace MccIntakeService.Domain.Tanks;
@@ -36,6 +36,28 @@ public class ChillingTank
 
     /// <summary>Working volume of the tank, in litres.</summary>
     public decimal CapacityLitres { get; private set; }
+
+    /// <summary>
+    /// Whether the tank has been dispatched to the factory. A closed tank takes no further pours
+    /// (SCRUM-8): milk added after the bowser left would corrupt the manifest the dispatch note
+    /// resolves through.
+    /// </summary>
+    public bool IsClosed { get; private set; }
+
+    /// <summary>When the tank was closed by a dispatch.</summary>
+    public DateTime? ClosedAtUtc { get; private set; }
+
+    /// <summary>Closes the tank as part of recording a dispatch note.</summary>
+    public void CloseForDispatch(DateTimeOffset? closedAtUtc = null)
+    {
+        if (IsClosed)
+        {
+            return;
+        }
+
+        IsClosed = true;
+        ClosedAtUtc = (closedAtUtc ?? DateTimeOffset.UtcNow).UtcDateTime;
+    }
 }
 
 /// <summary>
@@ -112,6 +134,12 @@ public class TankPour
     {
         ArgumentNullException.ThrowIfNull(tank);
         ArgumentNullException.ThrowIfNull(consignment);
+
+        if (tank.IsClosed)
+        {
+            throw new DomainValidationException(
+                $"Tank {tank.Code} has been dispatched and is closed to further pours.");
+        }
 
         // Only milk that passed the gate goes in a tank. An untested consignment has no verdict
         // yet, and a rejected one was turned away — neither is pourable.

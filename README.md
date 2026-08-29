@@ -77,6 +77,9 @@ excludes generated EF migrations from the coverage figure.
 | `GET` | `/api/tanks/pourable` | Consignments accepted at the gate and not yet poured. |
 | `POST` | `/api/tanks/{code}/pours` | Pour an accepted consignment into a tank. |
 | `GET` | `/api/tanks/{code}/manifest` | The tank's manifest; `date` filters the entries. |
+| `GET` | `/api/dispatch-notes` | Bowser dispatch notes; `date` filters by dispatch date (SCRUM-8). |
+| `GET` | `/api/dispatch-notes/{reference}` | One note, resolved to its contributing consignments. |
+| `POST` | `/api/dispatch-notes` | Record a note and close the tanks it drew from. |
 | `GET` | `/api/societies` | Societies for gate selection; `search`, `sortBy`, `descending`, `includeInactive` (SCRUM-51). |
 | `GET` | `/api/societies/{id}` | Fetch one society. |
 | `POST` | `/api/societies` | Register a supplying society (SCRUM-51). |
@@ -137,6 +140,19 @@ consignment: a manifest records what physically went in, and must keep reading t
 if the consignment's own figures are later restated. Filtering a manifest by date narrows the
 entries but never the tank totals, because what a tank holds does not change with how it is
 being looked at.
+
+### Bowser dispatch
+A dispatch note (SCRUM-8) records which tanks a bowser was loaded from, how much came from each,
+and the panel taken at loading. The reference is `DN-YYYYMMDD-NN`, issued per dispatch date.
+
+The total is summed from the per-tank quantities rather than supplied, and a tank cannot give up
+more than it currently holds — everything poured in, less anything already dispatched out.
+Submitting a note **closes** every tank it drew from: milk poured in after the bowser left would
+corrupt the manifest the note resolves through. Closing happens as part of recording the note, not
+as a separate step a caller could forget.
+
+Each source resolves to the consignments that contributed to it through the tank manifest, which
+is what lets the factory trace a failure back to a society. Notes are read-only once submitted.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are

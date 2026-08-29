@@ -2,6 +2,7 @@
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Application.Consignments;
+using MccIntakeService.Application.Dispatch;
 using MccIntakeService.Application.QualityTests;
 using MccIntakeService.Application.Societies;
 using MccIntakeService.Application.Tanks;
@@ -50,6 +51,7 @@ builder.Services.AddScoped<IConsignmentService, ConsignmentService>();
 builder.Services.AddScoped<ISocietyService, SocietyService>();
 builder.Services.AddScoped<IQualityTestService, QualityTestService>();
 builder.Services.AddScoped<ITankService, TankService>();
+builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddSingleton<IIntakeClock, IntakeClock>();
 
@@ -83,7 +85,12 @@ builder.Services.AddWonrichAuthorization(policies => policies
         IntakePolicies.PourToTanks,
         WonrichRoles.SystemAdministrator,
         WonrichRoles.MccManager,
-        WonrichRoles.IntakeOfficer));
+        WonrichRoles.IntakeOfficer)
+    .Add(
+        IntakePolicies.RecordDispatchNotes,
+        WonrichRoles.SystemAdministrator,
+        WonrichRoles.MccManager,
+        WonrichRoles.BowserOperator));
 
 // Quality test panel (SCRUM-50). Consumed from the shared library rather than reimplemented,
 // so the gate and the lab cannot reach different verdicts on the same readings.

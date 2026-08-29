@@ -23,4 +23,7 @@ public static class IntakePolicies
 
     /// <summary>Pour an accepted consignment into a chilling tank (SCRUM-52).</summary>
     public const string PourToTanks = "PourToTanks";
+
+    /// <summary>Record a bowser dispatch note (SCRUM-8).</summary>
+    public const string RecordDispatchNotes = "RecordDispatchNotes";
 }

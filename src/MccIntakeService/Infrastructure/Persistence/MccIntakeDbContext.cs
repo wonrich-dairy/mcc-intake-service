@@ -1,4 +1,5 @@
 ﻿using MccIntakeService.Domain.Consignments;
+using MccIntakeService.Domain.Dispatch;
 using MccIntakeService.Domain.QualityTests;
 using MccIntakeService.Domain.Societies;
 using MccIntakeService.Domain.Tanks;
@@ -28,6 +29,12 @@ public class MccIntakeDbContext : DbContext
 
     /// <summary>Accepted consignments poured into tanks (SCRUM-52).</summary>
     public DbSet<TankPour> TankPours => Set<TankPour>();
+
+    /// <summary>Bowser dispatch notes (SCRUM-8).</summary>
+    public DbSet<DispatchNote> DispatchNotes => Set<DispatchNote>();
+
+    /// <summary>The per-tank quantities each dispatch note drew.</summary>
+    public DbSet<DispatchSource> DispatchSources => Set<DispatchSource>();
 
     /// <summary>
     /// Chilling centres registered in the system (SCRUM-36). Distinct from <see cref="Society"/>:
