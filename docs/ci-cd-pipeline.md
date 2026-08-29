@@ -69,8 +69,10 @@ To enable the manual approval gate and branch restriction for production:
 1. Go to `Settings` → `Environments` in the repo
 2. Create environment `production`
 3. Add a **required reviewer** (the DevOps role holder)
-4. Under **Deployment branches** → select **Selected branches** → add `main`
-5. Create environment `staging` (no approval required)
+4. Set **Deployment branches** to "Selected branches" → add `main`
+5. Add `AZURE_WEBAPP_PUBLISH_PROFILE_PROD` as an **environment secret** (not a repository secret)
+6. Create environment `staging` (no approval required)
+7. Add `AZURE_WEBAPP_PUBLISH_PROFILE_STAGING` as an environment secret on `staging`
 
 > **Why the branch policy matters:** It prevents anyone from dispatching a production deployment from a feature branch. The workflow also validates this with a ref guard, but the environment policy is the authoritative control.
 
@@ -110,6 +112,7 @@ git log develop --oneline -10
 - Tests must still pass at the rollback commit; if they don't, the deployment is blocked
 - Production rollback still requires manual approval via the GitHub Environment gate
 - GitHub artifact retention is 90 days by default; `workflow_dispatch` rollback is not bounded by this since it rebuilds from source
+- Rollback redeploys application code only. EF Core migrations are applied forward-only, so rolling back past a migration leaves the older code running against a newer schema. Verify schema compatibility before rolling back across a migration boundary
 
 ## Verification
 
