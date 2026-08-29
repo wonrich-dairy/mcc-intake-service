@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.Societies;
 using MccIntakeService.Tests.Support;
+using Wonrich.Auth.Authorization;
 
 namespace MccIntakeService.Tests.Api;
 
@@ -21,7 +22,7 @@ public class CanQuantityApiTests
     public async Task A_can_sheet_is_submitted_in_kilograms_and_answered_with_both_units()
     {
         using var factory = new IntakeApiFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var societies = await client.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
 
@@ -46,7 +47,7 @@ public class CanQuantityApiTests
     public async Task A_can_weight_beyond_the_limit_is_refused()
     {
         using var factory = new IntakeApiFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var societies = await client.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
 
@@ -63,7 +64,7 @@ public class CanQuantityApiTests
     public async Task The_documented_can_sheet_asks_for_kilograms_not_litres()
     {
         using var factory = new IntakeApiFactory();
-        var client = factory.CreateClient();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var swagger = JsonDocument.Parse(await client.GetStringAsync("/swagger/v1/swagger.json")).RootElement;
 

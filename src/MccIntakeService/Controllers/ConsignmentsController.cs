@@ -1,5 +1,7 @@
-using MccIntakeService.Api.Contracts;
+﻿using MccIntakeService.Api.Contracts;
+using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Consignments;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MccIntakeService.Controllers;
@@ -38,6 +40,9 @@ public class ConsignmentsController : ControllerBase
     /// <c>arrivalTime</c>). Branch on <c>code</c> to tell them apart.
     /// </response>
     [HttpPost]
+    [Authorize(Policy = IntakePolicies.RegisterConsignments)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ConsignmentView), StatusCodes.Status201Created, "application/json")]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType(typeof(IntakeUnprocessableProblemDetails), StatusCodes.Status422UnprocessableEntity, ProblemJson)]

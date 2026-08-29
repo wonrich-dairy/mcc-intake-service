@@ -1,8 +1,11 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/MccIntakeService/MccIntakeService.csproj" />
+    <Project Path="src/Wonrich.Auth/Wonrich.Auth.csproj" />
+    <Project Path="src/Wonrich.AuthService/Wonrich.AuthService.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MccIntakeService.Tests/MccIntakeService.Tests.csproj" />
+    <Project Path="tests/Wonrich.AuthService.Tests/Wonrich.AuthService.Tests.csproj" />
   </Folder>
 </Solution>

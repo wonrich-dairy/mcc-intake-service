@@ -10,8 +10,8 @@
             code that never runs under test, so they are excluded from the coverage figure the
             Definition of Done is measured against.
           -->
-          <Exclude>[MccIntakeService]MccIntakeService.Infrastructure.Persistence.Migrations.*,[MccIntakeService]MccIntakeService.Infrastructure.Persistence.MccIntakeDbContextFactory</Exclude>
-          <ExcludeByFile>**/Infrastructure/Persistence/Migrations/**/*.cs</ExcludeByFile>
+          <Exclude>[MccIntakeService]MccIntakeService.Infrastructure.Persistence.Migrations.*,[MccIntakeService]MccIntakeService.Infrastructure.Persistence.MccIntakeDbContextFactory,[Wonrich.AuthService]Wonrich.AuthService.Infrastructure.Migrations.*,[Wonrich.AuthService]Wonrich.AuthService.Infrastructure.AuthDbContextFactory</Exclude>
+          <ExcludeByFile>**/Infrastructure/Persistence/Migrations/**/*.cs,**/Infrastructure/Migrations/**/*.cs</ExcludeByFile>
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
           <SkipAutoProps>true</SkipAutoProps>
         </Configuration>
