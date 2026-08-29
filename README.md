@@ -3,17 +3,20 @@
 Handles raw milk quality metrics at the Milk Chilling Center, bowser dispatch notes, and factory-intake condition logging, as part of the Wonrich Dairy Quality Monitoring & Traceability System.
 
 ## Tech stack
-- ASP.NET Core + Entity Framework
-- MySQL
+- ASP.NET Core (.NET 10) + Entity Framework
+- MySQL 8.0
+- Swashbuckle / Swagger UI for API documentation
 - Docker / docker-compose for local development
 - Deployed to Azure App Service (staging and production)
 
 ## Prerequisites
-- .NET 10 SDK
-- Docker Desktop
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop)
 - Git
 
 ## Getting started
+
+### Option 1 — Docker Compose (recommended)
 ```powershell
 git clone https://github.com/wonrich-dairy/mcc-intake-service.git
 cd mcc-intake-service
@@ -28,8 +31,11 @@ dotnet run --project src\MccIntakeService
 ```
 Swagger UI is served at `/swagger` in every environment except Production.
 
-> A MySQL container and compose file arrive with SCRUM-36 and SCRUM-39. Until then, point
-> `ConnectionStrings:DefaultConnection` at any reachable MySQL 8 instance.
+Or bring the whole stack up in containers (SCRUM-39):
+```powershell
+docker-compose up --build
+```
+The API is then at `http://localhost:5000`, with Swagger UI at `http://localhost:5000/swagger`.
 
 ## Tests
 ```powershell
@@ -43,7 +49,6 @@ excludes generated EF migrations from the coverage figure.
 | Key | Default | Purpose |
 | --- | --- | --- |
 | `ConnectionStrings:DefaultConnection` | *(empty)* | MySQL connection string. When empty the data layer is not registered. |
-| `Database:ServerVersion` | `8.0.36-mysql` | MySQL version the schema targets; configured rather than auto-detected so start-up does not depend on the server being reachable. |
 | `Intake:DailyCutoff` | `16:00` | Local time after which milk is no longer accepted. |
 | `Intake:TimeZone` | `Asia/Colombo` | Zone the centre's wall clock and intake dates run on. |
 | `Intake:MilkDensityKgPerLitre` | `1.03` | Density used to derive litres from the weight recorded at the gate. |
@@ -124,6 +129,7 @@ dotnet dotnet-ef migrations add <Name> --project src\MccIntakeService --output-d
 dotnet dotnet-ef migrations script --idempotent --project src\MccIntakeService --output schema.sql
 ```
 
+
 ## Branching strategy
 - `main`: protected, production-ready
 - `develop`: protected integration branch
@@ -133,4 +139,3 @@ dotnet dotnet-ef migrations script --idempotent --project src\MccIntakeService -
 1. Branch off `develop`: `git checkout -b feature/SCRUM-<key>-<description>`
 2. Open a PR into `develop` using the PR template (Jira key, summary, testing notes)
 3. At least one approving review is required before merge
-

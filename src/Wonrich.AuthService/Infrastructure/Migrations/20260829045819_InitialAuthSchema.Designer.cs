@@ -2,7 +2,6 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Wonrich.AuthService.Infrastructure;
@@ -12,7 +11,7 @@ using Wonrich.AuthService.Infrastructure;
 namespace Wonrich.AuthService.Infrastructure.Migrations
 {
     [DbContext(typeof(AuthDbContext))]
-    [Migration("20260828093928_InitialAuthSchema")]
+    [Migration("20260829045819_InitialAuthSchema")]
     partial class InitialAuthSchema
     {
         /// <inheritdoc />
@@ -20,10 +19,8 @@ namespace Wonrich.AuthService.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.19")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
-
-            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("Wonrich.AuthService.Domain.RefreshToken", b =>
                 {

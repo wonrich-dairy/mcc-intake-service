@@ -22,10 +22,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
         + "ConnectionStrings__DefaultConnection in the environment.");
 }
 
-var serverVersion = builder.Configuration["Database:ServerVersion"];
-builder.Services.AddDbContext<AuthDbContext>(options => options.UseMySql(
-    connectionString,
-    ServerVersion.Parse(string.IsNullOrWhiteSpace(serverVersion) ? "8.0.36-mysql" : serverVersion)));
+builder.Services.AddDbContext<AuthDbContext>(options => options.UseMySQL(connectionString));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
