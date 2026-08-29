@@ -65,11 +65,14 @@ Copy the entire XML output and save it as the GitHub secret.
 
 ## GitHub Environments Setup
 
-To enable the manual approval gate for production:
+To enable the manual approval gate and branch restriction for production:
 1. Go to `Settings` → `Environments` in the repo
 2. Create environment `production`
 3. Add a **required reviewer** (the DevOps role holder)
-4. Create environment `staging` (no approval required)
+4. Under **Deployment branches** → select **Selected branches** → add `main`
+5. Create environment `staging` (no approval required)
+
+> **Why the branch policy matters:** It prevents anyone from dispatching a production deployment from a feature branch. The workflow also validates this with a ref guard, but the environment policy is the authoritative control.
 
 ## Rollback
 
