@@ -6,6 +6,21 @@ on:
   pull_request:
     branches: [develop, main]
 
+  # ── Manual rollback / redeploy trigger (AC6) ──
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      commit_sha:
+        description: 'Commit SHA to rollback to (leave blank for current branch HEAD)'
+        required: false
+        type: string
+
 env:
   DOTNET_VERSION: '10.0.x'
   PROJECT_PATH: 'src/MccIntakeService/MccIntakeService.csproj'
@@ -16,6 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # For workflow_dispatch with a specific commit, checkout that SHA
+          ref: ${{ github.event.inputs.commit_sha || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -33,20 +51,22 @@ jobs:
         # Tests are run from the solution/project root — add test projects as they're created
 
       - name: Publish
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build -o ${{ github.workspace }}/publish
 
       - name: Upload build artifact
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: mcc-intake-service
           path: ${{ github.workspace }}/publish
 
-  # ── Deploy to Staging (auto on develop push) ──
+  # ── Deploy to Staging (auto on develop push, or manual rollback) ──
   deploy-staging:
     needs: build-and-test
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    if: |
+      (github.ref == 'refs/heads/develop' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
     runs-on: ubuntu-latest
     environment:
       name: staging
@@ -68,7 +88,9 @@ jobs:
   # ── Deploy to Production (manual approval required) ──
   deploy-production:
     needs: build-and-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
     runs-on: ubuntu-latest
     environment:
       name: production
