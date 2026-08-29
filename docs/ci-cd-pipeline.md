@@ -73,22 +73,44 @@ To enable the manual approval gate for production:
 
 ## Rollback
 
-To rollback to a previous deployment:
+The pipeline supports rollback via `workflow_dispatch` — a manual trigger that rebuilds and redeploys a specific commit.
+
+### How to rollback
+
 1. Go to the **Actions** tab in the repo
-2. Find the last successful deployment run
-3. Click **Re-run jobs** → **Re-run all jobs**
+2. Select the **"CI/CD — MCC & Intake Service"** workflow on the left
+3. Click **"Run workflow"** (top right)
+4. Fill in:
+   - **Branch**: `develop` (for staging) or `main` (for production)
+   - **Environment to deploy to**: `staging` or `production`
+   - **Commit SHA to rollback to**: paste the full SHA of the known-good commit (e.g. `a25e359...`)
+5. Click **"Run workflow"**
 
-Alternatively, use Azure CLI:
-```powershell
-# List previous deployments
-az webapp deployment list --name app-mcc-intake-staging --resource-group rg-mcc-intake-staging
+The pipeline will:
+1. Checkout the specified commit
+2. Build and test it
+3. Deploy to the selected environment
 
-# Rollback via redeployment of a specific commit
-# Re-run the GitHub Actions workflow for the desired commit
+### Finding a known-good commit SHA
+
+```bash
+# List recent commits on develop with their SHAs
+git log develop --oneline -10
+
+# Or find the commit from a previous successful deployment
+# Go to Actions → click the green run → the SHA is shown at the top
 ```
+
+### Important notes
+
+- Rollback **rebuilds from source** at the specified commit — it does not reuse a previously uploaded artifact
+- Tests must still pass at the rollback commit; if they don't, the deployment is blocked
+- Production rollback still requires manual approval via the GitHub Environment gate
+- GitHub artifact retention is 90 days by default; `workflow_dispatch` rollback is not bounded by this since it rebuilds from source
 
 ## Verification
 
 - [ ] Pipeline runs green on a clean push to `develop`
 - [ ] A deliberate failing test blocks deployment
-- [ ] Rollback executed successfully at least once
+- [ ] Rollback via `workflow_dispatch` executed successfully at least once
+
