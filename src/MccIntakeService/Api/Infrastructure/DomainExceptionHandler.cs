@@ -56,6 +56,11 @@ public sealed class DomainExceptionHandler : IExceptionHandler
             problemDetails.Extensions["arrivalTime"] = cutoffException.ArrivalTimeOfDay.ToString("HH:mm");
         }
 
+        if (domainException is DuplicateCodeException duplicateCodeException)
+        {
+            problemDetails.Extensions["conflictingCode"] = duplicateCodeException.ConflictingCode;
+        }
+
         httpContext.Response.StatusCode = statusCode;
 
         return await _problemDetailsService.TryWriteAsync(new ProblemDetailsContext
@@ -70,7 +75,14 @@ public sealed class DomainExceptionHandler : IExceptionHandler
     {
         // The request is well formed but breaks a rule of the intake process.
         IntakeCutoffExceededException => (StatusCodes.Status422UnprocessableEntity, "Intake closed for the day"),
+
+        // A code the caller chose collides with one already in use.
+        DuplicateCodeException => (StatusCodes.Status409Conflict, "Code already in use"),
+
+        // Something the request body points at does not exist. A resource addressed by the route
+        // instead answers 404, which the controllers handle themselves.
         EntityNotFoundException => (StatusCodes.Status422UnprocessableEntity, "Referenced record does not exist"),
-        _ => (StatusCodes.Status400BadRequest, "Consignment could not be registered")
+
+        _ => (StatusCodes.Status400BadRequest, "Request could not be completed")
     };
 }

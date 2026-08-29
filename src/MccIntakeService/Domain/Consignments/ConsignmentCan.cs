@@ -6,10 +6,16 @@ namespace MccIntakeService.Domain.Consignments;
 /// A single physical can delivered as part of a consignment, identified by the society's
 /// can label (e.g. "KC 01") and carrying the quantity of milk received in it.
 /// </summary>
+/// <remarks>
+/// The can is weighed at the gate, so kilograms are the recorded measurement and litres are
+/// derived from them using the centre's configured milk density. Both are stored: litres is what
+/// the tank manifests and downstream reports are expressed in, and recomputing it later from a
+/// density that has since been retuned would silently restate history.
+/// </remarks>
 public class ConsignmentCan
 {
-    /// <summary>Maximum litres one can may hold; guards against fat-fingered entry at the gate.</summary>
-    public const decimal MaxQuantityLitres = 1_000m;
+    /// <summary>Maximum kilograms one can may hold; guards against fat-fingered entry at the gate.</summary>
+    public const decimal MaxQuantityKg = 1_000m;
 
     /// <summary>EF Core materialisation constructor.</summary>
     private ConsignmentCan()
@@ -17,28 +23,40 @@ public class ConsignmentCan
         CanLabel = string.Empty;
     }
 
-    internal ConsignmentCan(Guid id, string canLabelPrefix, int canNumber, decimal quantityLitres)
+    internal ConsignmentCan(
+        Guid id,
+        string canLabelPrefix,
+        int canNumber,
+        decimal quantityKg,
+        decimal densityKgPerLitre)
     {
         if (canNumber <= 0)
         {
             throw new DomainValidationException($"Can number must be greater than zero, but was {canNumber}.");
         }
 
-        if (quantityLitres <= 0)
+        if (quantityKg <= 0)
         {
             throw new DomainValidationException(
-                $"Quantity for can {canNumber:00} must be greater than zero litres.");
+                $"Quantity for can {canNumber:00} must be greater than zero kilograms.");
         }
 
-        if (quantityLitres > MaxQuantityLitres)
+        if (quantityKg > MaxQuantityKg)
         {
             throw new DomainValidationException(
-                $"Quantity for can {canNumber:00} is {quantityLitres} L, which exceeds the {MaxQuantityLitres} L limit for a single can.");
+                $"Quantity for can {canNumber:00} is {quantityKg} kg, which exceeds the {MaxQuantityKg} kg limit for a single can.");
+        }
+
+        if (densityKgPerLitre <= 0)
+        {
+            throw new DomainValidationException(
+                $"Milk density must be greater than zero, but was {densityKgPerLitre} kg/L.");
         }
 
         Id = id;
         CanNumber = canNumber;
-        QuantityLitres = decimal.Round(quantityLitres, 2, MidpointRounding.AwayFromZero);
+        QuantityKg = decimal.Round(quantityKg, 2, MidpointRounding.AwayFromZero);
+        QuantityLitres = decimal.Round(QuantityKg / densityKgPerLitre, 2, MidpointRounding.AwayFromZero);
         CanLabel = $"{canLabelPrefix} {canNumber:00}";
     }
 
@@ -52,6 +70,9 @@ public class ConsignmentCan
     /// <summary>The can's number within the society's own numbering, e.g. 1 for "KC 01".</summary>
     public int CanNumber { get; private set; }
 
-    /// <summary>Litres of milk received in this can.</summary>
+    /// <summary>Kilograms of milk weighed in this can — the measurement taken at the gate.</summary>
+    public decimal QuantityKg { get; private set; }
+
+    /// <summary>Litres of milk in this can, derived from <see cref="QuantityKg"/> at registration.</summary>
     public decimal QuantityLitres { get; private set; }
 }

@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.Consignments;
+﻿using MccIntakeService.Domain.Consignments;
 using MccIntakeService.Infrastructure.Persistence;
 using MccIntakeService.Tests.Support;
 
@@ -90,6 +90,7 @@ public class ConsignmentReferenceGeneratorTests : IDisposable
             society,
             arrival,
             [new CanEntry(1, 40m)],
+            TestIntake.DensityKgPerLitre,
             new TimeOnly(16, 0),
             arrival.AddHours(1),
             DateTimeOffset.UtcNow);

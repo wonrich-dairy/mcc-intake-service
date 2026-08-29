@@ -23,6 +23,14 @@ public sealed class IntakeOptions
     [Required]
     public string TimeZone { get; set; } = "Asia/Colombo";
 
+    /// <summary>
+    /// Density used to convert the weight recorded at the gate into litres. Raw cow's milk sits
+    /// near 1.03 kg/L; the exact figure varies with fat content and temperature, so the centre can
+    /// tune it without a code change.
+    /// </summary>
+    [Range(0.9, 1.2, ErrorMessage = "Intake:MilkDensityKgPerLitre must be between 0.9 and 1.2 kg/L.")]
+    public decimal MilkDensityKgPerLitre { get; set; } = 1.03m;
+
     /// <summary>The cutoff parsed into a <see cref="TimeOnly"/>.</summary>
     public TimeOnly ParsedDailyCutoff =>
         TimeOnly.TryParseExact(DailyCutoff, "HH:mm", out var cutoff)

@@ -58,3 +58,14 @@ public sealed class IntakeUnprocessableProblemDetails : IntakeProblemDetails
     /// <example>21:13</example>
     public string? ArrivalTime { get; set; }
 }
+
+/// <summary>
+/// The 409 body, returned when a submitted code is already in use (SCRUM-51).
+/// <see cref="IntakeProblemDetails.Code"/> is always <c>duplicate_code</c>.
+/// </summary>
+public sealed class DuplicateCodeProblemDetails : IntakeProblemDetails
+{
+    /// <summary>The code that was already taken.</summary>
+    /// <example>KC</example>
+    public string ConflictingCode { get; set; } = string.Empty;
+}

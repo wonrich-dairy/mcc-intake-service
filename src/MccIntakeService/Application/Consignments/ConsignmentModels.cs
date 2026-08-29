@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.Consignments;
+﻿using MccIntakeService.Domain.Consignments;
 
 namespace MccIntakeService.Application.Consignments;
 
@@ -36,8 +36,15 @@ public sealed record ConsignmentQuery
     public int PageSize { get; init; } = 25;
 }
 
-/// <summary>One can as recorded against a consignment.</summary>
-public sealed record ConsignmentCanView(string CanLabel, int CanNumber, decimal QuantityLitres);
+/// <summary>
+/// One can as recorded against a consignment. Weight is what the gate measured; litres are
+/// derived from it at registration.
+/// </summary>
+public sealed record ConsignmentCanView(
+    string CanLabel,
+    int CanNumber,
+    decimal QuantityKg,
+    decimal QuantityLitres);
 
 /// <summary>Full detail of a registered consignment, including its can breakdown.</summary>
 public sealed record ConsignmentView(
@@ -49,6 +56,7 @@ public sealed record ConsignmentView(
     DateTime ArrivalAtLocal,
     DateOnly ArrivalDate,
     ConsignmentStatus Status,
+    decimal TotalQuantityKg,
     decimal TotalQuantityLitres,
     int CanCount,
     DateTime RegisteredAtUtc,
