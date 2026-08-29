@@ -1,0 +1,88 @@
+name: CI/CD — MCC & Intake Service
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  PROJECT_PATH: 'src/MccIntakeService/MccIntakeService.csproj'
+
+jobs:
+  # ── Build & Test ──
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Build
+        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test --configuration Release --no-build --verbosity normal
+        # Tests are run from the solution/project root — add test projects as they're created
+
+      - name: Publish
+        if: github.event_name == 'push'
+        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build -o ${{ github.workspace }}/publish
+
+      - name: Upload build artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcc-intake-service
+          path: ${{ github.workspace }}/publish
+
+  # ── Deploy to Staging (auto on develop push) ──
+  deploy-staging:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://app-mcc-intake-staging.azurewebsites.net
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mcc-intake-service
+          path: ./publish
+
+      - name: Deploy to Azure App Service (Staging)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-mcc-intake-staging
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_STAGING }}
+          package: ./publish
+
+  # ── Deploy to Production (manual approval required) ──
+  deploy-production:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://app-mcc-intake-prod.azurewebsites.net
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mcc-intake-service
+          path: ./publish
+
+      - name: Deploy to Azure App Service (Production)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-mcc-intake-prod
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_PROD }}
+          package: ./publish
