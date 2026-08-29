@@ -83,6 +83,7 @@ excludes generated EF migrations from the coverage figure.
 | `POST` | `/api/factory/arrivals` | Screen an arriving bowser and create the batch (SCRUM-9). |
 | `GET` | `/api/factory/batches` | Batches; `date` and `dispatchNote` filter. |
 | `GET` | `/api/factory/batches/{reference}` | One batch by reference. |
+| `GET` | `/api/factory/batches/{reference}/trace` | Resolve a batch to its tanks and consignments (SCRUM-12). |
 | `GET` | `/api/societies` | Societies for gate selection; `search`, `sortBy`, `descending`, `includeInactive` (SCRUM-51). |
 | `GET` | `/api/societies/{id}` | Fetch one society. |
 | `POST` | `/api/societies` | Register a supplying society (SCRUM-51). |
@@ -166,6 +167,19 @@ A clean pass creates a batch, `WR-YYYYMMDD-NN`, linked to the dispatch note it a
 reference is only spent when the screening passes, so a rejected arrival leaves no gap in the
 day's sequence. A dispatch note is screened once, pass or fail: screening it again would leave two
 answers about the same bowser.
+
+### Batch traceability
+A batch resolves back through its dispatch note to the tanks it drew from and every consignment in
+those tanks, with the full gate results for each (SCRUM-12).
+
+Contributing societies are ranked **most marginal first** — the supplier whose milk passed the
+gate by the narrowest room. Measures sit on different scales (percentages, lactometer degrees,
+positions on a colour card), so each is converted to a fraction of its own scale and the tightest
+becomes the score. It is a triage aid, not a verdict: everything ranked here already passed.
+
+Anything that cannot be resolved upstream is listed explicitly under `missing` rather than left
+blank, so a gap never reads as a clean result. A society with no gate results ranks *last*, not
+first — unknown is not the same as safe, and the missing entries are what flag it.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are

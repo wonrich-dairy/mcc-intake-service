@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Factory;

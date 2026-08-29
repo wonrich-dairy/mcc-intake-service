@@ -29,4 +29,11 @@ public static class IntakePolicies
 
     /// <summary>Screen an arriving bowser and create the batch at factory intake (SCRUM-9).</summary>
     public const string ScreenFactoryArrivals = "ScreenFactoryArrivals";
+
+    /// <summary>
+    /// Resolve a batch back to its source tanks and consignments (SCRUM-12). The story calls for
+    /// service-to-service authentication; with a single shared token scheme that is a token issued
+    /// to a service account holding one of these roles, not a separate mechanism.
+    /// </summary>
+    public const string TraceBatches = "TraceBatches";
 }
