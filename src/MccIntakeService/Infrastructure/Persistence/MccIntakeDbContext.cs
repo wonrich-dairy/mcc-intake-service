@@ -1,6 +1,7 @@
 ﻿using MccIntakeService.Domain.Consignments;
 using MccIntakeService.Domain.QualityTests;
 using MccIntakeService.Domain.Societies;
+using MccIntakeService.Domain.Tanks;
 using MccIntakeService.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +22,12 @@ public class MccIntakeDbContext : DbContext
 
     /// <summary>Gate quality test panels (SCRUM-7); one per consignment.</summary>
     public DbSet<QualityTest> QualityTests => Set<QualityTest>();
+
+    /// <summary>The centre's chilling tanks (SCRUM-52).</summary>
+    public DbSet<ChillingTank> ChillingTanks => Set<ChillingTank>();
+
+    /// <summary>Accepted consignments poured into tanks (SCRUM-52).</summary>
+    public DbSet<TankPour> TankPours => Set<TankPour>();
 
     /// <summary>
     /// Chilling centres registered in the system (SCRUM-36). Distinct from <see cref="Society"/>:
