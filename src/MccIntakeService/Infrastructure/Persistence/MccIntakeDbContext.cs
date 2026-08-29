@@ -1,4 +1,5 @@
 ﻿using MccIntakeService.Domain.Consignments;
+using MccIntakeService.Domain.QualityTests;
 using MccIntakeService.Domain.Societies;
 using MccIntakeService.Models;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,9 @@ public class MccIntakeDbContext : DbContext
     public DbSet<Consignment> Consignments => Set<Consignment>();
 
     public DbSet<ConsignmentCan> ConsignmentCans => Set<ConsignmentCan>();
+
+    /// <summary>Gate quality test panels (SCRUM-7); one per consignment.</summary>
+    public DbSet<QualityTest> QualityTests => Set<QualityTest>();
 
     /// <summary>
     /// Chilling centres registered in the system (SCRUM-36). Distinct from <see cref="Society"/>:

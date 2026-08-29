@@ -3,6 +3,7 @@ using System;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MccIntakeService.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MccIntakeDbContext))]
-    partial class MccIntakeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260829051855_AddQualityTests")]
+    partial class AddQualityTests
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

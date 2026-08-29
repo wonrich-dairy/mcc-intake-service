@@ -27,6 +27,13 @@ public sealed class QualityThresholds
     [Range(0, 40, ErrorMessage = "QualityThresholds:MinimumCorrectedClr must be between 0 and 40.")]
     public decimal MinimumCorrectedClr { get; set; } = 26.0m;
 
+    /// <summary>
+    /// Highest acceptable added-water percentage. Any reading above zero suggests adulteration,
+    /// so the default admits only the small margin the test itself carries.
+    /// </summary>
+    [Range(0, 100, ErrorMessage = "QualityThresholds:MaximumWaterPercent must be between 0 and 100.")]
+    public decimal MaximumWaterPercent { get; set; } = 0.5m;
+
     /// <summary>The weakest stability grade still accepted.</summary>
     public StabilityGrade WorstAcceptableStability { get; set; } = StabilityGrade.MarginallyStable;
 

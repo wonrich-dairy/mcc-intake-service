@@ -16,6 +16,7 @@ public class QualityPanelConsumptionTests
         3.9m,
         27.4m,
         29.0m,
+        0m,
         new Dictionary<AlcoholStage, StageOutcome>
         {
             [AlcoholStage.Alcohol80] = StageOutcome.Positive,
