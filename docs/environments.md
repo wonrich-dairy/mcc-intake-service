@@ -2,7 +2,7 @@
 
 ## Overview
 
-MCC & Intake Service is deployed to Azure App Service with **two isolated environments**: staging and production. Each environment has its own resource group, App Service plan, and App Service instance. Both environments connect to a shared Azure MySQL Flexible Server.
+MCC & Intake Service is deployed to Azure App Service with **two isolated environments**: staging and production. Each environment has its own resource group, App Service plan, and App Service instance. Both environments connect to a shared Azure MySQL Flexible Server, but each uses its own database (`mccdb` for staging, `mccdb_prod` for production).
 
 ## Environments
 
@@ -17,17 +17,18 @@ MCC & Intake Service is deployed to Azure App Service with **two isolated enviro
 
 ## Database
 
-A shared Azure MySQL Flexible Server is used for this sprint:
+Both environments connect to a shared Azure MySQL Flexible Server (`mcc-db`) but use **separate databases** for isolation:
 
-| Property | Value |
-|---|---|
-| **Host** | `mcc-db.mysql.database.azure.com` |
-| **Port** | `3306` |
-| **Database** | `mccdb` |
-| **Username** | `mccadmin` |
-| **SSL** | Required |
+| Property | Staging | Production |
+|---|---|---|
+| **Host** | `mcc-db.mysql.database.azure.com` | `mcc-db.mysql.database.azure.com` |
+| **Port** | `3306` | `3306` |
+| **Database** | `mccdb` | `mccdb_prod` |
+| **Username** | `mccadmin` | `mccadmin` |
+| **SSL** | Required | Required |
 
 > **Note:** Database credentials are managed via App Service Application Settings and are never committed to source code.
+
 
 ## Configuration
 
@@ -40,11 +41,13 @@ All configuration is resolved at **runtime** via Azure App Service Application S
 | `ASPNETCORE_ENVIRONMENT` | `Staging` or `Production` | App Service → Configuration |
 | `ConnectionStrings__DefaultConnection` | MySQL connection string | App Service → Configuration |
 
-### Secrets
+### Deployment Credentials
 
-Deployment credentials and database passwords are stored as **GitHub repository secrets** and used only by the CI/CD pipeline:
-- `AZURE_WEBAPP_PUBLISH_PROFILE_STAGING` — Azure publish profile for staging
-- `AZURE_WEBAPP_PUBLISH_PROFILE_PROD` — Azure publish profile for production
+Publish profiles are stored as **GitHub environment secrets** (not repository secrets), scoped to the environment that uses them:
+- `AZURE_WEBAPP_PUBLISH_PROFILE_STAGING` — environment secret on `staging`
+- `AZURE_WEBAPP_PUBLISH_PROFILE_PROD` — environment secret on `production`
+
+> This ensures the production credential is only accessible to jobs that declare `environment: production` and pass the approval gate. Database passwords are stored as App Service Application Settings, not in GitHub.
 
 ## Access Control
 

@@ -1,0 +1,130 @@
+name: CI/CD — MCC & Intake Service
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+  # ── Manual rollback / redeploy trigger (AC6) ──
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      commit_sha:
+        description: 'Commit SHA to rollback to (leave blank for current branch HEAD)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# Prevent a rollback dispatch and a develop push from racing.
+# cancel-in-progress: false ensures the first deployment finishes.
+concurrency:
+  group: deploy-${{ github.event.inputs.target_environment || github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROJECT_PATH: 'src/MccIntakeService/MccIntakeService.csproj'
+
+jobs:
+  # ── Build & Test ──
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit_sha || github.ref }}
+          fetch-depth: 0
+
+      # For production rollbacks, verify the SHA is actually on main
+      - name: Verify rollback SHA is an ancestor of main
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.commit_sha != '' &&
+          github.event.inputs.target_environment == 'production'
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "${{ github.event.inputs.commit_sha }}" origin/main \
+            || { echo "::error::SHA ${{ github.event.inputs.commit_sha }} is not on main"; exit 1; }
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: dotnet restore MccIntakeService.slnx
+
+      - name: Build
+        run: dotnet build MccIntakeService.slnx --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test MccIntakeService.slnx --configuration Release --no-build --verbosity normal
+
+      - name: Publish
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build -o ${{ github.workspace }}/publish
+
+      - name: Upload build artifact
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcc-intake-service
+          path: ${{ github.workspace }}/publish
+
+  # ── Deploy to Staging (auto on develop push, or manual rollback) ──
+  deploy-staging:
+    needs: build-and-test
+    if: |
+      (github.ref == 'refs/heads/develop' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'staging')
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://app-mcc-intake-staging.azurewebsites.net
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mcc-intake-service
+          path: ./publish
+
+      - name: Deploy to Azure App Service (Staging)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-mcc-intake-staging
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_STAGING }}
+          package: ./publish
+
+  # ── Deploy to Production (manual approval required) ──
+  deploy-production:
+    needs: build-and-test
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.event.inputs.target_environment == 'production' &&
+       github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://app-mcc-intake-prod.azurewebsites.net
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mcc-intake-service
+          path: ./publish
+
+      - name: Deploy to Azure App Service (Production)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-mcc-intake-prod
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_PROD }}
+          package: ./publish
