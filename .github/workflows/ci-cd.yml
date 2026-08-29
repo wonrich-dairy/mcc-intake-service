@@ -21,8 +21,17 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
+# Prevent a rollback dispatch and a develop push from racing.
+# cancel-in-progress: false ensures the first deployment finishes.
+concurrency:
+  group: deploy-${{ github.event.inputs.target_environment || github.ref }}
+  cancel-in-progress: false
+
 env:
-  DOTNET_VERSION: '10.0.x'
+  DOTNET_VERSION: '10.0.400'
   PROJECT_PATH: 'src/MccIntakeService/MccIntakeService.csproj'
 
 jobs:
@@ -32,8 +41,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # For workflow_dispatch with a specific commit, checkout that SHA
           ref: ${{ github.event.inputs.commit_sha || github.ref }}
+          fetch-depth: 0
+
+      # For production rollbacks, verify the SHA is actually on main
+      - name: Verify rollback SHA is an ancestor of main
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.commit_sha != '' &&
+          github.event.inputs.target_environment == 'production'
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "${{ github.event.inputs.commit_sha }}" origin/main \
+            || { echo "::error::SHA ${{ github.event.inputs.commit_sha }} is not on main"; exit 1; }
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -41,14 +61,13 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore dependencies
-        run: dotnet restore ${{ env.PROJECT_PATH }}
+        run: dotnet restore MccIntakeService.slnx
 
       - name: Build
-        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
+        run: dotnet build MccIntakeService.slnx --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test --configuration Release --no-build --verbosity normal
-        # Tests are run from the solution/project root — add test projects as they're created
+        run: dotnet test MccIntakeService.slnx --configuration Release --no-build --verbosity normal
 
       - name: Publish
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -90,7 +109,9 @@ jobs:
     needs: build-and-test
     if: |
       (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment == 'production')
+      (github.event_name == 'workflow_dispatch' &&
+       github.event.inputs.target_environment == 'production' &&
+       github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     environment:
       name: production
