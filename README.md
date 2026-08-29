@@ -61,7 +61,7 @@ excludes generated EF migrations from the coverage figure.
 | `QualityThresholds:MinimumSnf` | `8.5` | Lowest acceptable solids-not-fat. |
 | `QualityThresholds:MinimumCorrectedClr` | `26.0` | Lowest acceptable corrected CLR. |
 | `QualityThresholds:WorstAcceptableStability` | `MarginallyStable` | Weakest alcohol-cascade grade still accepted. |
-| `QualityThresholds:WorstAcceptableKqColour` | `Green` | Furthest-reduced KQ shade still accepted. |
+| `QualityThresholds:WorstAcceptableKqColour` | `Purple` | Furthest-reduced KQ shade still accepted. |
 
 ## API
 | Method | Route | Purpose |
@@ -100,7 +100,7 @@ by reference, never copied.
 - **Alcohol cascade** — a state machine running 80% → 75% → 68% → clot-on-boiling, halting at the
   first negative. A negative means no clotting, and since each rung is gentler than the last, the
   remaining stages would pass too.
-- **KQ colour** — a fixed enumeration running best (`Blue`) to worst (`White`). The numeric values
+- **KQ colour** — a fixed enumeration running best (`Blue`) to worst (`White`) across seven shades. The numeric values
   are stored contract; new shades go on the end.
 
 Thresholds are configuration, not constants: they are a commercial and seasonal decision the

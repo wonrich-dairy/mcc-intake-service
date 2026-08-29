@@ -1,4 +1,4 @@
-using MccIntakeService.Tests.Support;
+﻿using MccIntakeService.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Wonrich.QualityPanel;
@@ -21,7 +21,7 @@ public class QualityPanelConsumptionTests
             [AlcoholStage.Alcohol80] = StageOutcome.Positive,
             [AlcoholStage.Alcohol75] = StageOutcome.Negative
         },
-        KqColour.BluishGreen);
+        KqColour.LightBlue);
 
     [Fact]
     public void The_hosted_service_resolves_the_shared_evaluator()

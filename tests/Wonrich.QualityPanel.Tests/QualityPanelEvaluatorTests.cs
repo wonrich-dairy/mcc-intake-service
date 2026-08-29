@@ -79,7 +79,7 @@ public class QualityPanelEvaluatorTests
     [Fact]
     public void A_kq_colour_beyond_the_acceptable_shade_fails()
     {
-        var result = Evaluator().Evaluate(GoodSample(kq: KqColour.Yellow));
+        var result = Evaluator().Evaluate(GoodSample(kq: KqColour.Pink));
 
         Assert.Contains(result.Failures, failure => failure.Measure == "KqColour");
     }
@@ -87,7 +87,7 @@ public class QualityPanelEvaluatorTests
     [Fact]
     public void The_worst_acceptable_kq_shade_itself_still_passes()
     {
-        var result = Evaluator().Evaluate(GoodSample(kq: KqColour.Green));
+        var result = Evaluator().Evaluate(GoodSample(kq: KqColour.Purple));
 
         Assert.True(result.Passed);
     }
@@ -121,7 +121,7 @@ public class QualityPanelEvaluatorTests
         var mcc = Evaluator();
         var lab = Evaluator();
 
-        var readings = GoodSample(fat: 3.6m, raw: 27.2m, temperature: 26.0m, kq: KqColour.Green);
+        var readings = GoodSample(fat: 3.6m, raw: 27.2m, temperature: 26.0m, kq: KqColour.Purple);
 
         var atGate = mcc.Evaluate(readings);
         var atLab = lab.Evaluate(readings);
@@ -143,13 +143,13 @@ public class QualityPanelEvaluatorTests
     [Fact]
     public void The_kq_scale_runs_best_to_worst()
     {
-        Assert.Equal(6, KqColourScale.All.Count);
+        Assert.Equal(7, KqColourScale.All.Count);
         Assert.Equal(KqColour.Blue, KqColourScale.All[0]);
         Assert.Equal(KqColour.White, KqColourScale.All[^1]);
 
-        Assert.True(KqColourScale.IsAtLeastAsGoodAs(KqColour.Blue, KqColour.Green));
-        Assert.True(KqColourScale.IsAtLeastAsGoodAs(KqColour.Green, KqColour.Green));
-        Assert.False(KqColourScale.IsAtLeastAsGoodAs(KqColour.Yellow, KqColour.Green));
+        Assert.True(KqColourScale.IsAtLeastAsGoodAs(KqColour.Blue, KqColour.Purple));
+        Assert.True(KqColourScale.IsAtLeastAsGoodAs(KqColour.Purple, KqColour.Purple));
+        Assert.False(KqColourScale.IsAtLeastAsGoodAs(KqColour.Pink, KqColour.Purple));
 
         Assert.True(KqColourScale.IsDefined(KqColour.Blue));
         Assert.False(KqColourScale.IsDefined((KqColour)99));
@@ -160,10 +160,11 @@ public class QualityPanelEvaluatorTests
     {
         // Renumbering these would silently reinterpret every panel already recorded.
         Assert.Equal(0, (int)KqColour.Blue);
-        Assert.Equal(1, (int)KqColour.BluishGreen);
-        Assert.Equal(2, (int)KqColour.Green);
-        Assert.Equal(3, (int)KqColour.GreenishYellow);
-        Assert.Equal(4, (int)KqColour.Yellow);
-        Assert.Equal(5, (int)KqColour.White);
+        Assert.Equal(1, (int)KqColour.LightBlue);
+        Assert.Equal(2, (int)KqColour.Purple);
+        Assert.Equal(3, (int)KqColour.PurplePink);
+        Assert.Equal(4, (int)KqColour.LightPink);
+        Assert.Equal(5, (int)KqColour.Pink);
+        Assert.Equal(6, (int)KqColour.White);
     }
 }

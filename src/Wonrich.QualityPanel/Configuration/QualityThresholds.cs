@@ -31,5 +31,5 @@ public sealed class QualityThresholds
     public StabilityGrade WorstAcceptableStability { get; set; } = StabilityGrade.MarginallyStable;
 
     /// <summary>The furthest-reduced KQ shade still accepted.</summary>
-    public KqColour WorstAcceptableKqColour { get; set; } = KqColour.Green;
+    public KqColour WorstAcceptableKqColour { get; set; } = KqColour.Purple;
 }

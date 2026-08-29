@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Wonrich.QualityPanel;
@@ -38,13 +38,13 @@ public class QualityPanelRegistrationTests
         using var provider = Provider(
             ("QualityThresholds:MinimumFatPercent", "4.2"),
             ("QualityThresholds:MinimumSnf", "9.0"),
-            ("QualityThresholds:WorstAcceptableKqColour", "Yellow"));
+            ("QualityThresholds:WorstAcceptableKqColour", "Pink"));
 
         var thresholds = provider.GetRequiredService<IOptions<QualityThresholds>>().Value;
 
         Assert.Equal(4.2m, thresholds.MinimumFatPercent);
         Assert.Equal(9.0m, thresholds.MinimumSnf);
-        Assert.Equal(KqColour.Yellow, thresholds.WorstAcceptableKqColour);
+        Assert.Equal(KqColour.Pink, thresholds.WorstAcceptableKqColour);
     }
 
     [Fact]
