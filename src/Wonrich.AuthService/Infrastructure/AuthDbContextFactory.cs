@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace Wonrich.AuthService.Infrastructure;
@@ -15,7 +15,7 @@ public sealed class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbCon
     public AuthDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<AuthDbContext>()
-            .UseMySql(DesignTimeConnectionString, ServerVersion.Parse("8.0.36-mysql"))
+            .UseMySQL(DesignTimeConnectionString)
             .Options;
 
         return new AuthDbContext(options);

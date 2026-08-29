@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace MccIntakeService.Infrastructure.Persistence;
@@ -16,11 +16,8 @@ public sealed class MccIntakeDbContextFactory : IDesignTimeDbContextFactory<MccI
             Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
             ?? DatabaseDefaults.DesignTimeConnectionString;
 
-        var serverVersion = ServerVersion.Parse(
-            Environment.GetEnvironmentVariable("Database__ServerVersion") ?? DatabaseDefaults.DefaultServerVersion);
-
         var options = new DbContextOptionsBuilder<MccIntakeDbContext>()
-            .UseMySql(connectionString, serverVersion)
+            .UseMySQL(connectionString)
             .Options;
 
         return new MccIntakeDbContext(options);

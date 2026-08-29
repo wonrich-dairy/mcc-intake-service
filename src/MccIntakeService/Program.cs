@@ -28,8 +28,6 @@ builder.Services
 
 // Persistence (SCRUM-36). The connection string is supplied per environment; the local
 // development value lives in appsettings.Development.json, which is not committed.
-// The server version is configured rather than auto-detected so start-up does not depend on the
-// database being reachable, and so migrations can be scaffolded without a running server.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
@@ -42,8 +40,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
         + "for local development, or set ConnectionStrings__DefaultConnection in the environment.");
 }
 
-builder.Services.AddDbContext<MccIntakeDbContext>(options =>
-    options.UseMySql(connectionString, DatabaseDefaults.ServerVersionFrom(builder.Configuration)));
+builder.Services.AddDbContext<MccIntakeDbContext>(options => options.UseMySQL(connectionString));
 
 builder.Services.AddScoped<IConsignmentReferenceGenerator, ConsignmentReferenceGenerator>();
 builder.Services.AddScoped<IConsignmentService, ConsignmentService>();
@@ -95,6 +92,20 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 app.UseExceptionHandler();
+
+// Auto-apply pending EF migrations in Development and Staging (SCRUM-36).
+// Guarded on the provider: the migrations are MySQL-specific, and the integration tests host this
+// same pipeline over SQLite, where they cannot be applied and the schema is created directly.
+if (!app.Environment.IsProduction())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<MccIntakeDbContext>();
+
+    if (db.Database.ProviderName?.Contains("MySql", StringComparison.OrdinalIgnoreCase) == true)
+    {
+        db.Database.Migrate();
+    }
+}
 
 // Configure the HTTP request pipeline.
 // Swagger UI available in Development and Staging; disabled in Production (SCRUM-49)
