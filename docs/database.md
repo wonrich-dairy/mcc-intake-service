@@ -2,18 +2,18 @@
 
 ## Overview
 
-MCC & Intake Service uses a **shared Azure MySQL Flexible Server** (`mcc-db`) for staging and production. Local development uses a containerised MySQL instance via docker-compose.
+MCC & Intake Service uses a shared Azure MySQL Flexible Server (`mcc-db`) with **separate databases per environment**. Local development uses a containerised MySQL instance via docker-compose.
 
 ## Database Instances
 
-| Property | Local (Docker) | Azure (Staging & Production) |
-|---|---|---|
-| **Host** | `localhost:3307` | `mcc-db.mysql.database.azure.com` |
-| **Port** | `3306` (container) / `3307` (host) | `3306` |
-| **Database** | `mcc_intake` | `mccdb` |
-| **User** | `mcc_user` | `mccadmin` |
-| **SSL** | Not required | Required |
-| **Server** | MySQL 8.0.45 (Docker) | Azure MySQL Flexible Server |
+| Property | Local (Docker) | Staging (Azure) | Production (Azure) |
+|---|---|---|---|
+| **Host** | `localhost` | `mcc-db.mysql.database.azure.com` | `mcc-db.mysql.database.azure.com` |
+| **Port** | `3307` (host) / `3306` (container) | `3306` | `3306` |
+| **Database** | `mcc_intake` | `mccdb` | `mccdb_prod` |
+| **User** | `mcc_user` | `mccadmin` | `mccadmin` |
+| **SSL** | Not required | Required | Required |
+| **Server** | MySQL 8.0.45 (Docker) | Azure MySQL Flexible Server | Azure MySQL Flexible Server |
 
 ## Connection Strings
 
@@ -23,9 +23,14 @@ Server=localhost;Port=3307;Database=mcc_intake;User=mcc_user;Password=DevPasswor
 ```
 > The Docker service name `mcc-intake-db` resolves within the compose network. From the host, use `localhost:3307`.
 
-### Staging / Production (Azure)
+### Staging (Azure)
 ```
 Server=mcc-db.mysql.database.azure.com;Port=3306;Database=mccdb;User=mccadmin;Password=<password>;SslMode=Required
+```
+
+### Production (Azure)
+```
+Server=mcc-db.mysql.database.azure.com;Port=3306;Database=mccdb_prod;User=mccadmin;Password=<password>;SslMode=Required
 ```
 > Connection strings are stored as Azure App Service Application Settings (`ConnectionStrings__DefaultConnection`). Never committed to source.
 
@@ -43,7 +48,10 @@ dotnet ef database update --project src/MccIntakeService/MccIntakeService.csproj
 ```
 
 ### Auto-migration on startup
-The application automatically applies pending migrations at startup when `ASPNETCORE_ENVIRONMENT` is `Development` or `Staging`.
+The application automatically applies pending migrations at startup when `ASPNETCORE_ENVIRONMENT` is `Development` or `Staging`. **Production does not auto-migrate** — migrations must be applied explicitly before deployment.
+
+### Schema rollback limitation
+EF Core `Migrate()` only applies forward migrations. There are no auto-generated down-migrations. Rolling back to a previous commit does **not** roll the database schema back. If a rollback deploys code from before a migration, the older code will run against the newer schema. Ensure migrations are backward-compatible (additive columns, not renames or drops) to keep rollback safe.
 
 ## Backup Strategy
 

@@ -17,17 +17,18 @@ MCC & Intake Service is deployed to Azure App Service with **two isolated enviro
 
 ## Database
 
-A shared Azure MySQL Flexible Server is used for this sprint:
+Both environments connect to a shared Azure MySQL Flexible Server (`mcc-db`) but use **separate databases** for isolation:
 
-| Property | Value |
-|---|---|
-| **Host** | `mcc-db.mysql.database.azure.com` |
-| **Port** | `3306` |
-| **Database** | `mccdb` |
-| **Username** | `mccadmin` |
-| **SSL** | Required |
+| Property | Staging | Production |
+|---|---|---|
+| **Host** | `mcc-db.mysql.database.azure.com` | `mcc-db.mysql.database.azure.com` |
+| **Port** | `3306` | `3306` |
+| **Database** | `mccdb` | `mccdb_prod` |
+| **Username** | `mccadmin` | `mccadmin` |
+| **SSL** | Required | Required |
 
 > **Note:** Database credentials are managed via App Service Application Settings and are never committed to source code.
+
 
 ## Configuration
 
