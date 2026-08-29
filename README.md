@@ -84,6 +84,7 @@ excludes generated EF migrations from the coverage figure.
 | `GET` | `/api/factory/batches` | Batches; `date` and `dispatchNote` filter. |
 | `GET` | `/api/factory/batches/{reference}` | One batch by reference. |
 | `GET` | `/api/factory/batches/{reference}/trace` | Resolve a batch to its tanks and consignments (SCRUM-12). |
+| `POST` | `/api/sync` | Upload an officer's offline queue (SCRUM-10). |
 | `GET` | `/api/societies` | Societies for gate selection; `search`, `sortBy`, `descending`, `includeInactive` (SCRUM-51). |
 | `GET` | `/api/societies/{id}` | Fetch one society. |
 | `POST` | `/api/societies` | Register a supplying society (SCRUM-51). |
@@ -180,6 +181,24 @@ becomes the score. It is a triage aid, not a verdict: everything ranked here alr
 Anything that cannot be resolved upstream is listed explicitly under `missing` rather than left
 blank, so a gap never reads as a clean result. A society with no gate results ranks *last*, not
 first — unknown is not the same as safe, and the missing entries are what flag it.
+
+### Offline sync
+`POST /api/sync` takes an officer's queue of records captured without a network — registrations,
+gate panels and pours — and applies them in the order they were created (SCRUM-10).
+
+The upload is **idempotent on the client's own record identifier**. A handheld that drops
+connectivity mid-upload cannot know whether the server took a record, so its only safe move is to
+send the queue again; the server is the side that has to remember. A replayed record comes back as
+`Duplicate` carrying the reference the first attempt produced, not a bare acknowledgement.
+
+Each record is reported separately, so **one bad record never sinks the queue behind it**: the
+failure is returned with a reason and nothing is remembered for it, leaving the client free to
+retry once the cause is fixed. References are always issued by the server, exactly as they are
+online, so a record captured offline cannot collide with one already handed out.
+
+> The client half of SCRUM-10 — local storage, the pending indicator, the queue count and
+> automatic upload on reconnection — lives in the frontend repository. This service provides the
+> endpoint those depend on.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are

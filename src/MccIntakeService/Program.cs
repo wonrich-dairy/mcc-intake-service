@@ -4,6 +4,7 @@ using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.Dispatch;
 using MccIntakeService.Application.Factory;
+using MccIntakeService.Application.Sync;
 using MccIntakeService.Application.Traceability;
 using MccIntakeService.Application.QualityTests;
 using MccIntakeService.Application.Societies;
@@ -56,6 +57,7 @@ builder.Services.AddScoped<ITankService, TankService>();
 builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IFactoryIntakeService, FactoryIntakeService>();
 builder.Services.AddScoped<IBatchTraceService, BatchTraceService>();
+builder.Services.AddScoped<ISyncService, SyncService>();
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddSingleton<IIntakeClock, IntakeClock>();
 
