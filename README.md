@@ -29,7 +29,8 @@ dotnet dotnet-ef database update --project src\MccIntakeService
 
 dotnet run --project src\MccIntakeService
 ```
-Swagger UI is served at `/swagger` in every environment except Production.
+Swagger UI is served at `/swagger` in every environment except Production. Every route requires a
+token, so paste one from `POST /api/auth/login` into **Authorize** before trying an endpoint.
 
 Or bring the whole stack up in containers (SCRUM-39):
 ```powershell
@@ -136,7 +137,8 @@ to add or remove one. Quantities are copied onto the pour rather than read back 
 consignment: a manifest records what physically went in, and must keep reading the same way even
 if the consignment's own figures are later restated. Filtering a manifest by date narrows the
 entries but never the tank totals, because what a tank holds does not change with how it is
-being looked at.
+being looked at. A pour is filed under the centre's day, not UTC: between midnight and 05:30 the
+two disagree, and the officer's day is the one the rest of the centre runs on.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are
