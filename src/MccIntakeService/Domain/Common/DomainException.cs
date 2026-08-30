@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 
 namespace MccIntakeService.Domain.Common;
 
@@ -51,6 +51,25 @@ public sealed class IntakeCutoffExceededException : DomainException
 
     /// <summary>The local time of day the consignment arrived.</summary>
     public TimeOnly ArrivalTimeOfDay { get; }
+}
+
+/// <summary>
+/// Raised when a consignment already sitting in a tank is poured again (SCRUM-52). Separate from
+/// <see cref="DomainValidationException"/> so the API answers 409 from <see cref="DomainException.Code"/>
+/// rather than by matching on the message, which reworded would silently degrade to a 400.
+/// </summary>
+public sealed class ConsignmentAlreadyPouredException : DomainException
+{
+    public ConsignmentAlreadyPouredException(string reference)
+        : base(
+            "consignment_already_poured",
+            $"Consignment {reference} has already been poured and cannot be poured again.")
+    {
+        Reference = reference;
+    }
+
+    /// <summary>Gate reference of the consignment already in a tank.</summary>
+    public string Reference { get; }
 }
 
 /// <summary>Raised when a referenced entity does not exist.</summary>

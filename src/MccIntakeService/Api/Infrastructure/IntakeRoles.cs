@@ -20,4 +20,7 @@ public static class IntakePolicies
 
     /// <summary>Record the quality test panel and its verdict at the gate (SCRUM-7).</summary>
     public const string RecordQualityTests = "RecordQualityTests";
+
+    /// <summary>Pour an accepted consignment into a chilling tank (SCRUM-52).</summary>
+    public const string PourToTanks = "PourToTanks";
 }

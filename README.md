@@ -29,7 +29,8 @@ dotnet dotnet-ef database update --project src\MccIntakeService
 
 dotnet run --project src\MccIntakeService
 ```
-Swagger UI is served at `/swagger` in every environment except Production.
+Swagger UI is served at `/swagger` in every environment except Production. Every route requires a
+token, so paste one from `POST /api/auth/login` into **Authorize** before trying an endpoint.
 
 Or bring the whole stack up in containers (SCRUM-39):
 ```powershell
@@ -73,6 +74,10 @@ excludes generated EF migrations from the coverage figure.
 | `POST` | `/api/consignments/{reference}/quality-test/preview` | Derive CLR, SNF and TS and highlight breaches before submitting (SCRUM-7). |
 | `POST` | `/api/consignments/{reference}/quality-test` | Record the panel and settle the verdict. |
 | `GET` | `/api/consignments/{reference}/quality-test` | Read back the recorded panel. |
+| `GET` | `/api/tanks` | The three chilling tanks with their running totals (SCRUM-52). |
+| `GET` | `/api/tanks/pourable` | Consignments accepted at the gate and not yet poured. |
+| `POST` | `/api/tanks/{code}/pours` | Pour an accepted consignment into a tank. |
+| `GET` | `/api/tanks/{code}/manifest` | The tank's manifest; `date` filters the entries. |
 | `GET` | `/api/societies` | Societies for gate selection; `search`, `sortBy`, `descending`, `includeInactive` (SCRUM-51). |
 | `GET` | `/api/societies/{id}` | Fetch one society. |
 | `POST` | `/api/societies` | Register a supplying society (SCRUM-51). |
@@ -121,6 +126,19 @@ A positive clot-on-boiling refuses acceptance outright rather than leaving it to
 rejection must name the failed parameter and its recorded value. Only the cascade stages actually
 run are stored — anything submitted past the first negative is discarded, because the cascade
 defines those as never having happened.
+
+### Chilling tanks
+Only a consignment accepted at the gate can be poured, and it goes into exactly one tank
+(SCRUM-52). `pourable` lists what is eligible, so rejected and untested milk is never offered.
+Pour time and officer identity are recorded with each entry.
+
+The three tanks are plant, not reference data — they ship with the schema and there is no endpoint
+to add or remove one. Quantities are copied onto the pour rather than read back through the
+consignment: a manifest records what physically went in, and must keep reading the same way even
+if the consignment's own figures are later restated. Filtering a manifest by date narrows the
+entries but never the tank totals, because what a tank holds does not change with how it is
+being looked at. A pour is filed under the centre's day, not UTC: between midnight and 05:30 the
+two disagree, and the officer's day is the one the rest of the centre runs on.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are
