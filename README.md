@@ -1,4 +1,4 @@
-# MCC & Intake Service
+﻿# MCC & Intake Service
 
 Handles raw milk quality metrics at the Milk Chilling Center, bowser dispatch notes, and factory-intake condition logging, as part of the Wonrich Dairy Quality Monitoring & Traceability System.
 
@@ -167,6 +167,21 @@ timestamp and the source address; never the password.
 dotnet dotnet-ef migrations add <Name> --project src\MccIntakeService --output-dir Infrastructure/Persistence/Migrations
 dotnet dotnet-ef migrations script --idempotent --project src\MccIntakeService --output schema.sql
 ```
+
+### Dates
+
+The MySQL provider is Oracle's `MySql.EntityFrameworkCore`, which writes a `DateOnly` but cannot read
+one back: `MySqlDataReader` has no `DateOnly` support, so loading any entity holding one threw
+`InvalidCastException`. `MccIntakeDbContext.ConfigureConventions` therefore stores every `DateOnly`
+through `DateOnlyToDateTimeConverter`, keeping the column `date`. A date added to a new entity is
+covered by that convention automatically.
+
+Pomelo materialises `DateOnly` natively, but its newest release (9.0.0) targets EF Core 9 while this
+solution is on EF Core 10, so adopting it would mean downgrading EF Core across every project.
+
+Because the suite runs on SQLite, which maps `DateOnly` happily, `DateOnlyMappingTests` builds the
+model against the MySQL provider — no server needed — so a provider-specific mapping fault fails CI
+rather than QA.
 
 
 ## Branching strategy
