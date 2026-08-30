@@ -193,7 +193,9 @@ answers about the same bowser.
 
 ### Batch traceability
 A batch resolves back through its dispatch note to the tanks it drew from and every consignment in
-those tanks, with the full gate results for each (SCRUM-12).
+the load each one gave up, with the full gate results for each (SCRUM-12). The walk is scoped to
+the tank fill the bowser drew from, not the tank: a tank refilled since would otherwise put milk
+the bowser never carried on the batch, and rank its society among the suppliers to look at.
 
 Contributing societies are ranked **most marginal first** — the supplier whose milk passed the
 gate by the narrowest room. Measures sit on different scales (percentages, lactometer degrees,

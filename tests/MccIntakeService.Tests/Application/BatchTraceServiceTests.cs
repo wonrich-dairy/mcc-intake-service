@@ -122,6 +122,53 @@ public class BatchTraceServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_batch_traces_only_the_load_its_bowser_carried()
+    {
+        var carried = await PourAsync("T1", "KC");
+
+        // Draw the tank dry so the dispatch closes its fill, then start the next load in the
+        // same tank. Resolving through the whole tank rather than the fill would put milk the
+        // bowser never carried on the batch — and score its society's standing on it.
+        decimal held;
+
+        await using (var reading = _database.CreateContext())
+        {
+            held = (await new TankService(reading, _clock).ListAsync())
+                .Single(tank => tank.Code == "T1").AvailableQuantityLitres;
+        }
+
+        string note;
+
+        await using (var dispatching = _database.CreateContext())
+        {
+            note = (await new DispatchService(dispatching, _clock).RecordAsync(new RecordDispatchCommand(
+                "WP-CAB-1234", "Ranjith Fernando",
+                [new DispatchDrawCommand("T1", held)],
+                4.0m, 8.6m, KqColour.Blue, StabilityGrade.Stable, 4.5m, null, null, "manager-1"))).Reference;
+        }
+
+        string batch;
+
+        await using (var factory = _database.CreateContext())
+        {
+            batch = (await new FactoryIntakeService(factory, _clock).ScreenAsync(
+                new ScreenArrivalCommand(note, true, true, true, 4.8m, null, "factory-officer")))
+                .Batch!.Reference;
+        }
+
+        await PourAsync("T1", "MT");
+
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        var trace = await service.TraceAsync(batch);
+
+        var tank = Assert.Single(trace!.Tanks);
+        Assert.Equal(carried, Assert.Single(tank.Consignments).Reference);
+        Assert.Equal("KC", Assert.Single(trace.SocietiesByMargin).SocietyCode);
+    }
+
+    [Fact]
     public async Task A_batch_drawing_from_more_than_one_tank_resolves_every_tank()
     {
         await PourAsync("T1", "KC");
@@ -290,7 +337,7 @@ public class BatchTraceServiceTests : IDisposable
         await using (var context = _database.CreateContext())
         {
             var tank = await context.ChillingTanks.SingleAsync(t => t.Code == "T2");
-            Assert.False(tank.IsClosed);
+            Assert.Equal(1, tank.FillNumber);
         }
 
         var service = CreateService(out var context2);
