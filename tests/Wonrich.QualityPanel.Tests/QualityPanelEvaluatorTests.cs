@@ -16,8 +16,9 @@ public class QualityPanelEvaluatorTests
         decimal raw = 28.0m,
         decimal temperature = 28.0m,
         KqColour kq = KqColour.Blue,
-        StageOutcome at80 = StageOutcome.Negative) =>
-        new(fat, raw, temperature, new Dictionary<AlcoholStage, StageOutcome>
+        StageOutcome at80 = StageOutcome.Negative,
+        decimal water = 0m) =>
+        new(fat, raw, temperature, water, new Dictionary<AlcoholStage, StageOutcome>
         {
             [AlcoholStage.Alcohol80] = at80,
             [AlcoholStage.Alcohol75] = StageOutcome.Negative
@@ -62,7 +63,7 @@ public class QualityPanelEvaluatorTests
     [Fact]
     public void Stability_beyond_the_acceptable_grade_fails()
     {
-        var readings = new PanelReadings(4.0m, 28.0m, 28.0m, new Dictionary<AlcoholStage, StageOutcome>
+        var readings = new PanelReadings(4.0m, 28.0m, 28.0m, 0m, new Dictionary<AlcoholStage, StageOutcome>
         {
             [AlcoholStage.Alcohol80] = StageOutcome.Positive,
             [AlcoholStage.Alcohol75] = StageOutcome.Positive,
@@ -74,6 +75,14 @@ public class QualityPanelEvaluatorTests
         // Default worst-acceptable is MarginallyStable; Unstable is a rung beyond it.
         Assert.Equal(StabilityGrade.Unstable, result.Cascade.Grade);
         Assert.Contains(result.Failures, failure => failure.Measure == "Stability");
+    }
+
+    [Fact]
+    public void Added_water_beyond_the_configured_maximum_fails()
+    {
+        var result = Evaluator().Evaluate(GoodSample(water: 5.0m));
+
+        Assert.Contains(result.Failures, failure => failure.Measure == "WaterPercent");
     }
 
     [Fact]

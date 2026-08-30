@@ -60,6 +60,7 @@ excludes generated EF migrations from the coverage figure.
 | `QualityThresholds:MinimumFatPercent` | `3.5` | Lowest acceptable fat percentage. |
 | `QualityThresholds:MinimumSnf` | `8.5` | Lowest acceptable solids-not-fat. |
 | `QualityThresholds:MinimumCorrectedClr` | `26.0` | Lowest acceptable corrected CLR. |
+| `QualityThresholds:MaximumWaterPercent` | `0.5` | Highest acceptable added water. |
 | `QualityThresholds:WorstAcceptableStability` | `MarginallyStable` | Weakest alcohol-cascade grade still accepted. |
 | `QualityThresholds:WorstAcceptableKqColour` | `Purple` | Furthest-reduced KQ shade still accepted. |
 
@@ -69,6 +70,9 @@ excludes generated EF migrations from the coverage figure.
 | `POST` | `/api/consignments` | Register an arriving society consignment (SCRUM-6). |
 | `GET` | `/api/consignments/{reference}` | Fetch one consignment by its `MCC-YYYYMMDD-SOCIETY-NN` reference. |
 | `GET` | `/api/consignments` | List consignments filtered by society, date, date range or reference. |
+| `POST` | `/api/consignments/{reference}/quality-test/preview` | Derive CLR, SNF and TS and highlight breaches before submitting (SCRUM-7). |
+| `POST` | `/api/consignments/{reference}/quality-test` | Record the panel and settle the verdict. |
+| `GET` | `/api/consignments/{reference}/quality-test` | Read back the recorded panel. |
 | `GET` | `/api/societies` | Societies for gate selection; `search`, `sortBy`, `descending`, `includeInactive` (SCRUM-51). |
 | `GET` | `/api/societies/{id}` | Fetch one society. |
 | `POST` | `/api/societies` | Register a supplying society (SCRUM-51). |
@@ -105,6 +109,18 @@ by reference, never copied.
 
 Thresholds are configuration, not constants: they are a commercial and seasonal decision the
 centre retunes without a release. The formulae stay in code, because they are properties of milk.
+
+### Gate testing
+A consignment is tested once (SCRUM-7), and the record never changes afterwards: it is the
+evidence behind accepting or rejecting a delivery the society is paid for. `preview` evaluates
+readings without storing anything, so the officer sees the derived values and any breach before
+committing to a verdict; both paths share one evaluation, so the figures shown are the figures
+stored.
+
+A positive clot-on-boiling refuses acceptance outright rather than leaving it to judgement, and a
+rejection must name the failed parameter and its recorded value. Only the cascade stages actually
+run are stored — anything submitted past the first negative is discarded, because the cascade
+defines those as never having happened.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are
@@ -151,6 +167,21 @@ timestamp and the source address; never the password.
 dotnet dotnet-ef migrations add <Name> --project src\MccIntakeService --output-dir Infrastructure/Persistence/Migrations
 dotnet dotnet-ef migrations script --idempotent --project src\MccIntakeService --output schema.sql
 ```
+
+### Dates
+
+The MySQL provider is Oracle's `MySql.EntityFrameworkCore`, which writes a `DateOnly` but cannot read
+one back: `MySqlDataReader` has no `DateOnly` support, so loading any entity holding one threw
+`InvalidCastException`. `MccIntakeDbContext.ConfigureConventions` therefore stores every `DateOnly`
+through `DateOnlyToDateTimeConverter`, keeping the column `date`. A date added to a new entity is
+covered by that convention automatically.
+
+Pomelo materialises `DateOnly` natively, but its newest release (9.0.0) targets EF Core 9 while this
+solution is on EF Core 10, so adopting it would mean downgrading EF Core across every project.
+
+Because the suite runs on SQLite, which maps `DateOnly` happily, `DateOnlyMappingTests` builds the
+model against the MySQL provider — no server needed — so a provider-specific mapping fault fails CI
+rather than QA.
 
 
 ## Branching strategy

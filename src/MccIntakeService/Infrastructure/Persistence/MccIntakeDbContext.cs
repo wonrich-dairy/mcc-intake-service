@@ -1,4 +1,5 @@
 ﻿using MccIntakeService.Domain.Consignments;
+using MccIntakeService.Domain.QualityTests;
 using MccIntakeService.Domain.Societies;
 using MccIntakeService.Models;
 using Microsoft.EntityFrameworkCore;
@@ -18,11 +19,37 @@ public class MccIntakeDbContext : DbContext
 
     public DbSet<ConsignmentCan> ConsignmentCans => Set<ConsignmentCan>();
 
+    /// <summary>Gate quality test panels (SCRUM-7); one per consignment.</summary>
+    public DbSet<QualityTest> QualityTests => Set<QualityTest>();
+
     /// <summary>
     /// Chilling centres registered in the system (SCRUM-36). Distinct from <see cref="Society"/>:
     /// a centre is where milk is received, a society is who supplies it.
     /// </summary>
     public DbSet<MilkCollectionCenter> MilkCollectionCenters => Set<MilkCollectionCenter>();
+
+    /// <summary>
+    /// Every <see cref="DateOnly"/> in the model is stored through
+    /// <see cref="DateOnlyToDateTimeConverter"/>, because the MySQL provider cannot read one back.
+    /// Applying it as a convention rather than per property means a date added to a later entity is
+    /// covered without anyone having to remember this.
+    /// </summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+
+        var dates = configurationBuilder
+            .Properties<DateOnly>()
+            .HaveConversion<DateOnlyToDateTimeConverter>();
+
+        // Naming the store type keeps the columns `date` rather than the `datetime(6)` the converted
+        // CLR type would otherwise infer, so the mapping matches the schema already migrated. SQLite,
+        // which the tests run on, has no `date` type and maps the converted value itself.
+        if (Database.ProviderName?.Contains("MySql", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            dates.HaveColumnType("date");
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

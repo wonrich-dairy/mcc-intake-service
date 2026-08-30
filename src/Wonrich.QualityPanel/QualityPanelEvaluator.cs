@@ -10,12 +10,14 @@ namespace Wonrich.QualityPanel;
 /// Milk temperature when the lactometer was read, used to correct the reading. This is not the
 /// arrival temperature: the two are different measurements and must not be conflated.
 /// </param>
+/// <param name="WaterPercent">Added water detected in the sample.</param>
 /// <param name="AlcoholOutcomes">Outcome of each cascade stage that was performed.</param>
 /// <param name="KqColour">Shade the KQ dye settled at.</param>
 public sealed record PanelReadings(
     decimal FatPercent,
     decimal RawLactometerReading,
     decimal TemperatureCelsius,
+    decimal WaterPercent,
     IReadOnlyDictionary<AlcoholStage, StageOutcome> AlcoholOutcomes,
     KqColour KqColour);
 
@@ -92,6 +94,14 @@ public sealed class QualityPanelEvaluator : IQualityPanelEvaluator
             failures.Add(new PanelFailure(
                 nameof(composition.Snf),
                 $"SNF is {composition.Snf}, below the minimum {_thresholds.MinimumSnf}."));
+        }
+
+        if (readings.WaterPercent > _thresholds.MaximumWaterPercent)
+        {
+            failures.Add(new PanelFailure(
+                "WaterPercent",
+                $"Added water is {readings.WaterPercent}%, above the maximum "
+                + $"{_thresholds.MaximumWaterPercent}%."));
         }
 
         // Grades run best to worst, so a grade beyond the configured worst-acceptable is a fail.

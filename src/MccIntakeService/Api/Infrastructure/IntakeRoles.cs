@@ -1,4 +1,4 @@
-namespace MccIntakeService.Api.Infrastructure;
+﻿namespace MccIntakeService.Api.Infrastructure;
 
 /// <summary>
 /// Named authorization policies this service enforces, paired with the shared Wonrich roles that
@@ -17,4 +17,7 @@ public static class IntakePolicies
 
     /// <summary>Register an arriving consignment at the gate (SCRUM-6).</summary>
     public const string RegisterConsignments = "RegisterConsignments";
+
+    /// <summary>Record the quality test panel and its verdict at the gate (SCRUM-7).</summary>
+    public const string RecordQualityTests = "RecordQualityTests";
 }
