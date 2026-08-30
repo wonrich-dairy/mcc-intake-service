@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -246,6 +246,33 @@ public class DispatchNotesApiTests
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    /// <summary>
+    /// Both 404s are documented as IntakeProblemDetails, whose `code` is the field a consumer
+    /// branches on. Built with ControllerBase.Problem(...) they carried no code at all.
+    /// </summary>
+    [Fact]
+    public async Task Both_not_found_refusals_carry_the_code_the_contract_documents()
+    {
+        using var factory = new IntakeApiFactory();
+        var officer = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        await PourAsync(officer, "T1", 0);
+
+        var manager = factory.CreateClientAs(WonrichRoles.MccManager);
+
+        var unknownNote = await manager.GetAsync("/api/dispatch-notes/DN-20260823-99");
+        var unknownTank = await manager.PostAsJsonAsync("/api/dispatch-notes", Note(("T9", 10m)));
+
+        Assert.Equal(HttpStatusCode.NotFound, unknownNote.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, unknownTank.StatusCode);
+        Assert.Equal("entity_not_found", await CodeOf(unknownNote));
+        Assert.Equal("entity_not_found", await CodeOf(unknownTank));
+    }
+
+    private static async Task<string?> CodeOf(HttpResponseMessage response) =>
+        (await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions))
+            .GetProperty("code")
+            .GetString();
 
     [Fact]
     public async Task The_dispatch_endpoints_are_documented_in_swagger()

@@ -187,8 +187,18 @@ changed once created for the same reason. There is deliberately no `DELETE`.
 
 Six roles are configured in `Wonrich.Auth/Authorization/WonrichRoles.cs`, and each user holds
 exactly one. `Api/Infrastructure/IntakeRoles.cs` holds only this service's mapping of roles to
-what they may do: `ManageSocieties` (`MccManager`, `SystemAdministrator`) and
-`RegisterConsignments` (those two plus `IntakeOfficer`). Guarded endpoints answer `401` when
+what they may do. `MccManager` and `SystemAdministrator` satisfy every policy; the rest are:
+
+| Policy | Also satisfied by |
+| --- | --- |
+| `ManageSocieties` | — |
+| `RegisterConsignments` | `IntakeOfficer` |
+| `RecordQualityTests` | `IntakeOfficer`, `QualityAnalyst` |
+| `PourToTanks` | `IntakeOfficer` |
+| `RecordDispatchNotes` | — |
+
+A bowser operator drives; signing milk out to the factory is the manager's record, which is why
+there is no operator role. Guarded endpoints answer `401` when
 unauthenticated and `403` when the role is wrong. Society reads stay open, because an intake
 officer has to list societies to pick one at the gate.
 

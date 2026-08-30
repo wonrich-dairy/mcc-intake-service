@@ -87,10 +87,10 @@ builder.Services.AddWonrichAuthorization(policies => policies
         WonrichRoles.MccManager,
         WonrichRoles.IntakeOfficer)
     .Add(
+        // The bowser operator drives; the note is the manager's record of what left the centre.
         IntakePolicies.RecordDispatchNotes,
         WonrichRoles.SystemAdministrator,
-        WonrichRoles.MccManager,
-        WonrichRoles.BowserOperator));
+        WonrichRoles.MccManager));
 
 // Quality test panel (SCRUM-50). Consumed from the shared library rather than reimplemented,
 // so the gate and the lab cannot reach different verdicts on the same readings.

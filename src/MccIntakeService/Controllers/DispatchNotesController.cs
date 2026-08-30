@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Dispatch;
@@ -113,8 +113,10 @@ public class DispatchNotesController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="date">Restrict to a single dispatch date.</param>
     /// <response code="200">The matching notes, newest first.</response>
+    /// <response code="400"><c>date</c> was supplied but is not a date.</response>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<DispatchNoteView>), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
     public async Task<ActionResult<IReadOnlyList<DispatchNoteView>>> List(
         CancellationToken cancellationToken,
         [FromQuery] DateOnly? date = null) =>
@@ -132,10 +134,11 @@ public class DispatchNotesController : ControllerBase
 
         if (note is null)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Dispatch note not found",
-                detail: $"No dispatch note carries the reference '{reference}'.");
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                "entity_not_found",
+                "Dispatch note not found",
+                $"No dispatch note carries the reference '{reference}'.");
         }
 
         return Ok(note);
@@ -167,10 +170,13 @@ public class DispatchNotesController : ControllerBase
         }
         catch (EntityNotFoundException exception)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Tank not found",
-                detail: exception.Message);
+            // Addressed by the request rather than the route, but a tank code the caller chose is
+            // still a 404 here, as it is on the tank routes.
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                exception.Code,
+                "Tank not found",
+                exception.Message);
         }
     }
 }
