@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.Common;
+﻿using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Consignments;
 using Wonrich.QualityPanel;
 
@@ -44,6 +44,7 @@ public class QualityTest
         Guid id,
         Guid consignmentId,
         PanelReadings readings,
+        SensoryCheck sensory,
         PanelResult result,
         TestVerdict verdict,
         string? failedParameter,
@@ -59,6 +60,10 @@ public class QualityTest
         TemperatureCelsius = readings.TemperatureCelsius;
         WaterPercent = readings.WaterPercent;
         KqColour = readings.KqColour.ToString();
+
+        SmellOk = sensory.SmellOk;
+        ColourOk = sensory.ColourOk;
+        TasteOk = sensory.TasteOk;
 
         CorrectedClr = result.Composition.CorrectedClr;
         Snf = result.Composition.Snf;
@@ -97,6 +102,15 @@ public class QualityTest
     /// <summary>KQ shade recorded, stored by name so the scale can gain shades without renumbering.</summary>
     public string KqColour { get; private set; }
 
+    /// <summary>The sample smelled as fresh milk should.</summary>
+    public bool SmellOk { get; private set; }
+
+    /// <summary>The sample was the colour fresh milk should be.</summary>
+    public bool ColourOk { get; private set; }
+
+    /// <summary>The sample tasted as fresh milk should.</summary>
+    public bool TasteOk { get; private set; }
+
     /// <summary>Lactometer reading corrected to the calibration temperature.</summary>
     public decimal CorrectedClr { get; private set; }
 
@@ -133,6 +147,7 @@ public class QualityTest
     /// <param name="id">Identity for the new test.</param>
     /// <param name="consignment">The consignment being tested.</param>
     /// <param name="readings">The readings the officer took.</param>
+    /// <param name="sensory">What the officer's own senses said about the sample.</param>
     /// <param name="result">The evaluated panel, from the shared library.</param>
     /// <param name="verdict">Accept or Reject, as the officer decided.</param>
     /// <param name="failedParameter">Parameter that failed; required when rejecting.</param>
@@ -143,6 +158,7 @@ public class QualityTest
         Guid id,
         Consignment consignment,
         PanelReadings readings,
+        SensoryCheck sensory,
         PanelResult result,
         TestVerdict verdict,
         string? failedParameter,
@@ -152,6 +168,7 @@ public class QualityTest
     {
         ArgumentNullException.ThrowIfNull(consignment);
         ArgumentNullException.ThrowIfNull(readings);
+        ArgumentNullException.ThrowIfNull(sensory);
         ArgumentNullException.ThrowIfNull(result);
 
         if (consignment.Status != ConsignmentStatus.Registered)
@@ -187,6 +204,7 @@ public class QualityTest
             id,
             consignment.Id,
             readings,
+            sensory,
             result,
             verdict,
             failedParameter?.Trim(),
