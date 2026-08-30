@@ -28,7 +28,7 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ArrivalAtLocal")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateOnly>("ArrivalDate")
+                    b.Property<DateTime>("ArrivalDate")
                         .HasColumnType("date");
 
                     b.Property<string>("Reference")
@@ -340,6 +340,11 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<bool>("ColourOk")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
                     b.Property<Guid>("ConsignmentId")
                         .HasColumnType("char(36)");
 
@@ -373,6 +378,11 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
+                    b.Property<bool>("SmellOk")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
                     b.Property<decimal>("Snf")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
@@ -381,6 +391,11 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("varchar(30)");
+
+                    b.Property<bool>("TasteOk")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
 
                     b.Property<decimal>("TemperatureCelsius")
                         .HasPrecision(5, 2)
