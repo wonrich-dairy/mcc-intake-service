@@ -7,20 +7,32 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MccIntakeService.Application.Tanks;
 
-/// <summary>A tank and what it currently holds.</summary>
+/// <summary>
+/// A tank and the load it is holding now. The totals are the tank's current fill, not everything
+/// it has ever held: a load that has gone to the factory is no longer there to be dispatched
+/// again, and a list that counted it would send the manager to a 400 at submission (SCRUM-8).
+/// </summary>
 /// <param name="Code">Tank code as painted on the plant.</param>
 /// <param name="Name">Tank name.</param>
 /// <param name="CapacityLitres">Working volume of the tank.</param>
-/// <param name="TotalQuantityLitres">Running total poured in, updated on each pour.</param>
-/// <param name="TotalQuantityKg">Running total by weight.</param>
-/// <param name="ConsignmentCount">How many consignments have been poured in.</param>
+/// <param name="TotalQuantityLitres">Litres poured into the current fill.</param>
+/// <param name="TotalQuantityKg">The same by weight.</param>
+/// <param name="AvailableQuantityLitres">
+/// What a bowser can still draw: the current fill, less anything already dispatched off it.
+/// </param>
+/// <param name="ConsignmentCount">How many consignments make up the current fill.</param>
+/// <param name="FillNumber">Which fill the tank is on; a dispatch that empties it opens the next.</param>
+/// <param name="LastClosedAtUtc">When a dispatch last closed a fill of this tank, if one has.</param>
 public sealed record TankView(
     string Code,
     string Name,
     decimal CapacityLitres,
     decimal TotalQuantityLitres,
     decimal TotalQuantityKg,
-    int ConsignmentCount);
+    decimal AvailableQuantityLitres,
+    int ConsignmentCount,
+    int FillNumber,
+    DateTime? LastClosedAtUtc);
 
 /// <summary>One consignment on a tank's manifest.</summary>
 /// <param name="ConsignmentReference">The consignment's gate reference.</param>
@@ -31,6 +43,10 @@ public sealed record TankView(
 /// <param name="QuantityKg">Kilograms poured.</param>
 /// <param name="PouredAtUtc">When the pour was confirmed.</param>
 /// <param name="PouredBy">Officer who confirmed it.</param>
+/// <param name="FillNumber">
+/// The fill this pour joined, so a reader can tell the load in the tank now from the ones that
+/// have already gone to the factory.
+/// </param>
 public sealed record ManifestEntryView(
     string ConsignmentReference,
     string SocietyCode,
@@ -39,11 +55,12 @@ public sealed record ManifestEntryView(
     decimal QuantityLitres,
     decimal QuantityKg,
     DateTime PouredAtUtc,
-    string? PouredBy);
+    string? PouredBy,
+    int FillNumber);
 
-/// <summary>A tank's manifest, with its running totals.</summary>
+/// <summary>A tank's manifest, with the totals of the load it is holding now.</summary>
 /// <param name="Tank">The tank the manifest is for.</param>
-/// <param name="Entries">Every consignment in the tank, newest pour first.</param>
+/// <param name="Entries">Every consignment poured into the tank, newest pour first.</param>
 public sealed record TankManifestView(TankView Tank, IReadOnlyList<ManifestEntryView> Entries);
 
 /// <summary>A consignment that has passed the gate and has not yet been poured.</summary>
@@ -205,7 +222,8 @@ public sealed class TankService : ITankService
                 pour.QuantityLitres,
                 pour.QuantityKg,
                 pour.PouredAtUtc,
-                pour.PouredBy)).ToList());
+                pour.PouredBy,
+                pour.FillNumber)).ToList());
     }
 
     private async Task<ChillingTank?> FindTankAsync(string tankCode, CancellationToken cancellationToken)
@@ -215,12 +233,15 @@ public sealed class TankService : ITankService
         return await _dbContext.ChillingTanks.FirstOrDefaultAsync(tank => tank.Code == code, cancellationToken);
     }
 
-    /// <summary>Totals a tank from its pours, so the running total cannot drift from the manifest.</summary>
+    /// <summary>
+    /// Totals a tank from the pours of its current fill, so the running total cannot drift from
+    /// the manifest — nor report milk that has already left on a bowser.
+    /// </summary>
     private async Task<TankView> ToViewAsync(ChillingTank tank, CancellationToken cancellationToken)
     {
         var totals = await _dbContext.TankPours
             .AsNoTracking()
-            .Where(pour => pour.TankId == tank.Id)
+            .Where(pour => pour.TankId == tank.Id && pour.FillNumber == tank.FillNumber)
             .GroupBy(pour => 1)
             .Select(group => new
             {
@@ -230,12 +251,24 @@ public sealed class TankService : ITankService
             })
             .FirstOrDefaultAsync(cancellationToken);
 
+        // A partial draw leaves the fill open with a balance, so what can still be dispatched is
+        // read the same way the dispatch service reads it rather than assumed to be the total.
+        var dispatched = await _dbContext.DispatchSources
+            .AsNoTracking()
+            .Where(source => source.TankId == tank.Id && source.FillNumber == tank.FillNumber)
+            .SumAsync(source => (decimal?)source.QuantityLitres, cancellationToken) ?? 0m;
+
+        var poured = totals?.Litres ?? 0m;
+
         return new TankView(
             tank.Code,
             tank.Name,
             tank.CapacityLitres,
-            totals?.Litres ?? 0m,
+            poured,
             totals?.Kg ?? 0m,
-            totals?.Count ?? 0);
+            poured - dispatched,
+            totals?.Count ?? 0,
+            tank.FillNumber,
+            tank.LastClosedAtUtc);
     }
 }
