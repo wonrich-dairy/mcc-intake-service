@@ -93,10 +93,10 @@ builder.Services.AddWonrichAuthorization(policies => policies
         WonrichRoles.MccManager,
         WonrichRoles.IntakeOfficer)
     .Add(
+        // The bowser operator drives; the note is the manager's record of what left the centre.
         IntakePolicies.RecordDispatchNotes,
         WonrichRoles.SystemAdministrator,
-        WonrichRoles.MccManager,
-        WonrichRoles.BowserOperator)
+        WonrichRoles.MccManager)
     .Add(
         IntakePolicies.ScreenFactoryArrivals,
         WonrichRoles.SystemAdministrator,
@@ -121,6 +121,23 @@ builder.Services.AddSwaggerGen(options =>
         Title = "MCC & Intake Service API",
         Version = "v1",
         Description = "Raw milk quality metrics, bowser dispatch notes, and factory-intake condition logging for Wonrich Dairy."
+    });
+
+    // Every route on this service is [Authorize], and Swagger UI cannot send a token without a
+    // declared scheme, so the endpoints were documented but not exercisable from the page.
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Access token from POST /api/auth/login on the auth service. Paste the token only."
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
 
     // Pick up XML documentation comments
