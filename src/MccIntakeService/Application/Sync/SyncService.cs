@@ -1,4 +1,4 @@
-using MccIntakeService.Application.Consignments;
+﻿using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.QualityTests;
 using MccIntakeService.Application.Tanks;
 using MccIntakeService.Domain.Common;
@@ -45,7 +45,10 @@ public sealed record SyncQualityTestPayload(
     IReadOnlyDictionary<AlcoholStage, StageOutcome> AlcoholOutcomes,
     TestVerdict Verdict,
     string? FailedParameter,
-    string? FailedValue);
+    string? FailedValue,
+    bool SmellOk = true,
+    bool ColourOk = true,
+    bool TasteOk = true);
 
 /// <summary>A pour captured offline.</summary>
 public sealed record SyncPourPayload(string TankCode, string ConsignmentReference);
@@ -235,9 +238,12 @@ public sealed class SyncService : ISyncService
                 payload.KqColour,
                 payload.AlcoholOutcomes,
                 payload.Verdict,
-                payload.FailedParameter,
-                payload.FailedValue,
-                syncedBy),
+                // Named from here on: the sensory observation sits between the verdict and the
+                // failure, and a positional list would have bound the wrong argument to it.
+                Sensory: new SensoryCheck(payload.SmellOk, payload.ColourOk, payload.TasteOk),
+                FailedParameter: payload.FailedParameter,
+                FailedValue: payload.FailedValue,
+                TestedBy: syncedBy),
             cancellationToken);
 
         return view.ConsignmentReference;

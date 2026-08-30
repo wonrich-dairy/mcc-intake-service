@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Sync;
@@ -57,6 +57,13 @@ public sealed class SyncQualityTestRequest
     public decimal WaterPercent { get; set; }
 
     public KqColour KqColour { get; set; }
+
+    /// <summary>The officer's own senses, defaulting to a sound sample.</summary>
+    public bool SmellOk { get; set; } = true;
+
+    public bool ColourOk { get; set; } = true;
+
+    public bool TasteOk { get; set; } = true;
 
     [Required]
     [MinLength(1, ErrorMessage = "At least the 80% alcohol result is required.")]
@@ -142,7 +149,10 @@ public sealed class SyncUploadRequest
                     operation.QualityTest.AlcoholOutcomes,
                     operation.QualityTest.Verdict,
                     operation.QualityTest.FailedParameter,
-                    operation.QualityTest.FailedValue),
+                    operation.QualityTest.FailedValue,
+                    operation.QualityTest.SmellOk,
+                    operation.QualityTest.ColourOk,
+                    operation.QualityTest.TasteOk),
             operation.Pour is null
                 ? null
                 : new SyncPourPayload(operation.Pour.TankCode, operation.Pour.ConsignmentReference)))

@@ -1,4 +1,4 @@
-using MccIntakeService.Application.Consignments;
+﻿using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.Dispatch;
 using MccIntakeService.Application.QualityTests;
 using MccIntakeService.Application.Tanks;
@@ -57,7 +57,7 @@ public class DispatchServiceTests : IDisposable
                 _clock).RecordAsync(reference, new RecordTestCommand(
                     4.1m, 28.5m, 29.0m, 0m, KqColour.Blue,
                     new Dictionary<AlcoholStage, StageOutcome> { [AlcoholStage.Alcohol80] = StageOutcome.Negative },
-                    TestVerdict.Accept, null, null, "officer-1"));
+                    TestVerdict.Accept, TestedBy: "officer-1"));
         }
 
         await using var pouring = _database.CreateContext();
