@@ -1,4 +1,4 @@
-using Wonrich.Auth.Authorization;
+﻿using Wonrich.Auth.Authorization;
 
 namespace Wonrich.AuthService.Domain;
 
@@ -50,7 +50,7 @@ public class UserAccount
     /// <summary>The PBKDF2 hash; never the password itself.</summary>
     public string PasswordHash { get; private set; }
 
-    /// <summary>The single role this user holds, from the configured seven (SCRUM-45).</summary>
+    /// <summary>The single role this user holds, from the configured six (SCRUM-45).</summary>
     public string Role { get; private set; }
 
     /// <summary>Chilling centre or factory the user operates at.</summary>
@@ -94,7 +94,7 @@ public class UserAccount
         WonrichRoles.IsConfigured(role)
             ? role
             : throw new ArgumentException(
-                $"'{role}' is not one of the seven configured Wonrich roles.", nameof(role));
+                $"'{role}' is not one of the six configured Wonrich roles.", nameof(role));
 
     private static string Require(string value, int maxLength, string field)
     {

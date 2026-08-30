@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -178,7 +178,7 @@ public class TanksApiTests
 
         await client.PostAsJsonAsync("/api/tanks/T1/pours", new { consignmentReference = reference });
 
-        var day = DateOnly.FromDateTime(factory.Clock.UtcNow.UtcDateTime);
+        var day = DateOnly.FromDateTime(factory.Clock.LocalNow);
 
         var onDay = await client.GetFromJsonAsync<JsonElement>(
             $"/api/tanks/T1/manifest?date={day:yyyy-MM-dd}", JsonOptions);
@@ -188,6 +188,68 @@ public class TanksApiTests
         Assert.Single(onDay.GetProperty("entries").EnumerateArray().ToList());
         Assert.Empty(otherDay.GetProperty("entries").EnumerateArray().ToList());
     }
+
+    /// <summary>
+    /// Between midnight and 05:30 the centre's day and the UTC day disagree. The cutoff, the gate
+    /// reference and every other date at the centre run on local time; filing a pour by UTC put
+    /// the small hours under the previous day, and AC7's by-date query returned the wrong one.
+    /// </summary>
+    [Fact]
+    public async Task A_pour_in_the_small_hours_is_filed_under_the_centre_s_day()
+    {
+        using var factory = new IntakeApiFactory();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        var reference = await ConsignmentAsync(client);
+
+        // 02:00 in Colombo is 20:30 the previous day in UTC.
+        factory.Clock.LocalNow = new DateTime(2026, 8, 24, 2, 0, 0);
+
+        await client.PostAsJsonAsync("/api/tanks/T1/pours", new { consignmentReference = reference });
+
+        var centreDay = await client.GetFromJsonAsync<JsonElement>(
+            "/api/tanks/T1/manifest?date=2026-08-24", JsonOptions);
+        var utcDay = await client.GetFromJsonAsync<JsonElement>(
+            "/api/tanks/T1/manifest?date=2026-08-23", JsonOptions);
+
+        Assert.Single(centreDay.GetProperty("entries").EnumerateArray().ToList());
+        Assert.Empty(utcDay.GetProperty("entries").EnumerateArray().ToList());
+    }
+
+    /// <summary>
+    /// `code` is the field a consumer branches on, and all four refusals from these two routes are
+    /// documented as IntakeProblemDetails. Built with ControllerBase.Problem(...) the 404s and the
+    /// 409 carried no code at all, so a client that handled one refusal broke on the others.
+    /// </summary>
+    [Fact]
+    public async Task Every_refusal_carries_the_code_the_contract_documents()
+    {
+        using var factory = new IntakeApiFactory();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        var reference = await ConsignmentAsync(client);
+
+        var unknownTank = await client.PostAsJsonAsync(
+            "/api/tanks/T9/pours", new { consignmentReference = reference });
+
+        await client.PostAsJsonAsync("/api/tanks/T1/pours", new { consignmentReference = reference });
+        var alreadyPoured = await client.PostAsJsonAsync(
+            "/api/tanks/T2/pours", new { consignmentReference = reference });
+
+        var untested = await ConsignmentAsync(client, verdict: null, societyIndex: 1);
+        var notTested = await client.PostAsJsonAsync(
+            "/api/tanks/T1/pours", new { consignmentReference = untested });
+
+        var unknownManifest = await client.GetAsync("/api/tanks/T9/manifest");
+
+        Assert.Equal("entity_not_found", await CodeOf(unknownTank));
+        Assert.Equal("consignment_already_poured", await CodeOf(alreadyPoured));
+        Assert.Equal("domain_validation_failed", await CodeOf(notTested));
+        Assert.Equal("entity_not_found", await CodeOf(unknownManifest));
+    }
+
+    private static async Task<string?> CodeOf(HttpResponseMessage response) =>
+        (await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions))
+            .GetProperty("code")
+            .GetString();
 
     [Fact]
     public async Task An_unauthenticated_caller_is_refused()
@@ -202,7 +264,7 @@ public class TanksApiTests
     {
         using var factory = new IntakeApiFactory();
 
-        var response = await factory.CreateClientAs(WonrichRoles.BowserOperator).GetAsync("/api/tanks");
+        var response = await factory.CreateClientAs(WonrichRoles.ProductionManager).GetAsync("/api/tanks");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Wonrich.Auth.Authorization;
 using Wonrich.AuthService.Application;
 using Wonrich.AuthService.Tests.Support;
@@ -14,7 +14,7 @@ public class UserServiceTests : IDisposable
     {
         context = _host.CreateContext();
 
-        return new UserService(context);
+        return new UserService(context, _host.Time);
     }
 
     private static CreateUserCommand NewUser(
@@ -61,7 +61,7 @@ public class UserServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task A_role_outside_the_configured_seven_is_rejected()
+    public async Task A_role_outside_the_configured_six_is_rejected()
     {
         var service = CreateService(out var context);
         await using var _ = context;
@@ -170,7 +170,7 @@ public class UserServiceTests : IDisposable
 
         await using (var admin = _host.CreateContext())
         {
-            await new UserService(admin).DeactivateAsync(account.Id);
+            await new UserService(admin, _host.Time).DeactivateAsync(account.Id);
         }
 
         // Sign-in already refused a deactivated account; the token it held must stop too.
@@ -178,6 +178,11 @@ public class UserServiceTests : IDisposable
         var refreshed = await _host.CreateService(fresh).RefreshAsync(signedIn.Tokens!.RefreshToken, null);
 
         Assert.False(refreshed.Succeeded);
+
+        // Stamped from the injected clock, as everywhere else in the service, so the moment a
+        // token stopped working is the moment the rest of the audit trail agrees on.
+        var revoked = await fresh.RefreshTokens.SingleAsync(token => token.UserId == account.Id);
+        Assert.Equal(_host.Time.GetUtcNow().UtcDateTime, revoked.RevokedAtUtc);
     }
 
     [Fact]
@@ -202,7 +207,7 @@ public class UserServiceTests : IDisposable
 
         await service.CreateAsync(NewUser());
         await service.CreateAsync(new CreateUserCommand(
-            "s.fernando", "Sunil Fernando", "another-long-password", WonrichRoles.BowserOperator));
+            "s.fernando", "Sunil Fernando", "another-long-password", WonrichRoles.FactoryIntakeOfficer));
 
         Assert.Equal("n.silva", Assert.Single(await service.ListAsync(new UserQuery { Search = "silva" })).UserName);
         Assert.Equal("s.fernando", Assert.Single(await service.ListAsync(new UserQuery { Search = "Sunil" })).UserName);
@@ -216,11 +221,11 @@ public class UserServiceTests : IDisposable
 
         await service.CreateAsync(NewUser());
         await service.CreateAsync(new CreateUserCommand(
-            "s.fernando", "Sunil Fernando", "another-long-password", WonrichRoles.BowserOperator));
+            "s.fernando", "Sunil Fernando", "another-long-password", WonrichRoles.FactoryIntakeOfficer));
 
-        var operators = await service.ListAsync(new UserQuery { Role = WonrichRoles.BowserOperator });
+        var screeners = await service.ListAsync(new UserQuery { Role = WonrichRoles.FactoryIntakeOfficer });
 
-        Assert.Equal("s.fernando", Assert.Single(operators).UserName);
+        Assert.Equal("s.fernando", Assert.Single(screeners).UserName);
     }
 
     [Fact]
@@ -265,9 +270,9 @@ public class UserServiceTests : IDisposable
     }
 
     [Fact]
-    public void All_seven_roles_are_assignable()
+    public void All_six_roles_are_assignable()
     {
-        Assert.Equal(7, UserService.AssignableRoles.Count);
+        Assert.Equal(6, UserService.AssignableRoles.Count);
         Assert.Equal(WonrichRoles.All, UserService.AssignableRoles);
     }
 
