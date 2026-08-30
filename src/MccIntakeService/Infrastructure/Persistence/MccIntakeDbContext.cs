@@ -42,6 +42,29 @@ public class MccIntakeDbContext : DbContext
     /// </summary>
     public DbSet<MilkCollectionCenter> MilkCollectionCenters => Set<MilkCollectionCenter>();
 
+    /// <summary>
+    /// Every <see cref="DateOnly"/> in the model is stored through
+    /// <see cref="DateOnlyToDateTimeConverter"/>, because the MySQL provider cannot read one back.
+    /// Applying it as a convention rather than per property means a date added to a later entity is
+    /// covered without anyone having to remember this.
+    /// </summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+
+        var dates = configurationBuilder
+            .Properties<DateOnly>()
+            .HaveConversion<DateOnlyToDateTimeConverter>();
+
+        // Naming the store type keeps the columns `date` rather than the `datetime(6)` the converted
+        // CLR type would otherwise infer, so the mapping matches the schema already migrated. SQLite,
+        // which the tests run on, has no `date` type and maps the converted value itself.
+        if (Database.ProviderName?.Contains("MySql", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            dates.HaveColumnType("date");
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
