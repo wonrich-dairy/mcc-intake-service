@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Wonrich.Auth.Authorization;
 using Wonrich.AuthService.Application;
 using Wonrich.AuthService.Domain;
@@ -186,7 +186,7 @@ public class AuthenticationServiceTests : IDisposable
     }
 
     [Fact]
-    public void An_account_cannot_hold_a_role_outside_the_configured_seven()
+    public void An_account_cannot_hold_a_role_outside_the_configured_six()
     {
         Assert.Throws<ArgumentException>(
             () => new UserAccount(Guid.NewGuid(), "x", "X", "password", "NotARole"));
