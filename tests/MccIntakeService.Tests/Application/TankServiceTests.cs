@@ -62,9 +62,9 @@ public class TankServiceTests : IDisposable
                 4.1m, 28.5m, 29.0m, 0m, KqColour.Blue,
                 new Dictionary<AlcoholStage, StageOutcome> { [AlcoholStage.Alcohol80] = StageOutcome.Negative },
                 verdict.Value,
-                verdict == TestVerdict.Reject ? "FatPercent" : null,
-                verdict == TestVerdict.Reject ? "4.10" : null,
-                "officer-1"));
+                FailedParameter: verdict == TestVerdict.Reject ? "FatPercent" : null,
+                FailedValue: verdict == TestVerdict.Reject ? "4.10" : null,
+                TestedBy: "officer-1"));
 
         return reference;
     }
