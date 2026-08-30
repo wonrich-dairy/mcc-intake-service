@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using MccIntakeService.Application.QualityTests;
 using MccIntakeService.Domain.QualityTests;
 using Wonrich.QualityPanel;
@@ -27,6 +27,21 @@ public sealed class RecordQualityTestRequest : IValidatableObject
     /// <example>0.0</example>
     [Range(0, 100, ErrorMessage = "Added water must be between 0 and 100 percent.")]
     public decimal WaterPercent { get; set; }
+
+    /// <summary>
+    /// The sample smelled as fresh milk should. Defaults to true: the officer confirms what is
+    /// wrong, not what is right, and a client that says nothing found nothing wrong.
+    /// </summary>
+    /// <example>true</example>
+    public bool SmellOk { get; set; } = true;
+
+    /// <summary>The sample was the colour fresh milk should be.</summary>
+    /// <example>true</example>
+    public bool ColourOk { get; set; } = true;
+
+    /// <summary>The sample tasted as fresh milk should.</summary>
+    /// <example>true</example>
+    public bool TasteOk { get; set; } = true;
 
     /// <summary>Shade the KQ dye settled at, from the seven-shade card.</summary>
     /// <example>Blue</example>
@@ -87,6 +102,7 @@ public sealed class RecordQualityTestRequest : IValidatableObject
         KqColour,
         AlcoholOutcomes,
         verdict,
+        new SensoryCheck(SmellOk, ColourOk, TasteOk),
         FailedParameter,
         FailedValue,
         testedBy);

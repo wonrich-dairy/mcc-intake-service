@@ -26,6 +26,12 @@ public sealed class QualityTestConfiguration : IEntityTypeConfiguration<QualityT
         builder.Property(test => test.StabilityGrade).HasMaxLength(30).IsRequired();
         builder.Property(test => test.PassedAlcoholAt).HasMaxLength(30).IsRequired();
 
+        // Recorded as found, defaulting to sound: a panel written before the sensory check existed
+        // did not observe a fault, and reading it back as one would restate history.
+        builder.Property(test => test.SmellOk).IsRequired().HasDefaultValue(true);
+        builder.Property(test => test.ColourOk).IsRequired().HasDefaultValue(true);
+        builder.Property(test => test.TasteOk).IsRequired().HasDefaultValue(true);
+
         builder.Property(test => test.Verdict)
             .HasConversion<string>()
             .HasMaxLength(20)
