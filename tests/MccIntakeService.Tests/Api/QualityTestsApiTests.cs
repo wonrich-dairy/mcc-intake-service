@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -192,7 +192,7 @@ public class QualityTestsApiTests
         var officer = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var reference = await RegisterConsignmentAsync(officer);
 
-        var response = await factory.CreateClientAs(WonrichRoles.BowserOperator)
+        var response = await factory.CreateClientAs(WonrichRoles.ProductionManager)
             .PostAsJsonAsync($"/api/consignments/{reference}/quality-test", SoundPanel());
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);

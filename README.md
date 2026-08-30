@@ -156,7 +156,7 @@ decide whether a request is authentic.
 | `POST` | `/api/auth/login` | Exchange a username and password for an access and refresh token. |
 | `POST` | `/api/auth/refresh` | Exchange a refresh token for a fresh pair. |
 | `GET` | `/api/users` | List accounts; `search`, `role`, `activeOnly` (SCRUM-45). |
-| `GET` | `/api/users/roles` | The seven assignable roles, for the role picker. |
+| `GET` | `/api/users/roles` | The six assignable roles, for the role picker. |
 | `GET` | `/api/users/{id}` | Fetch one account. |
 | `POST` | `/api/users` | Create an account. |
 | `PUT` | `/api/users/{id}` | Amend an account, optionally resetting its password. |
@@ -167,7 +167,7 @@ Account administration is restricted to `SystemAdministrator`. Accounts are deac
 deleted, so sign-in history keeps resolving to the account that made it, and a username cannot be
 changed once created for the same reason. There is deliberately no `DELETE`.
 
-Seven roles are configured in `Wonrich.Auth/Authorization/WonrichRoles.cs`, and each user holds
+Six roles are configured in `Wonrich.Auth/Authorization/WonrichRoles.cs`, and each user holds
 exactly one. `Api/Infrastructure/IntakeRoles.cs` holds only this service's mapping of roles to
 what they may do: `ManageSocieties` (`MccManager`, `SystemAdministrator`) and
 `RegisterConsignments` (those two plus `IntakeOfficer`). Guarded endpoints answer `401` when
