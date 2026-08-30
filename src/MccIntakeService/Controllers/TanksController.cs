@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Tanks;
@@ -70,9 +70,11 @@ public class TanksController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="date">Restrict the entries to one pour date; totals always cover the whole tank.</param>
     /// <response code="200">The manifest and the tank's running totals.</response>
+    /// <response code="400"><c>date</c> was supplied but is not a date.</response>
     /// <response code="404">No tank carries that code.</response>
     [HttpGet("{code}/manifest")]
     [ProducesResponseType(typeof(TankManifestView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
     public async Task<ActionResult<TankManifestView>> Manifest(
         string code,
@@ -115,23 +117,20 @@ public class TanksController : ControllerBase
         }
         catch (EntityNotFoundException exception)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Not found",
-                detail: exception.Message);
-        }
-        catch (DomainValidationException exception) when (exception.Message.Contains(
-            "already been poured", StringComparison.OrdinalIgnoreCase))
-        {
-            return Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Consignment already poured",
-                detail: exception.Message);
+            // Addressed by the route, so 404 rather than the 422 the handler gives a body
+            // reference. The conflict and the rejected-consignment 400 both reach the handler,
+            // which writes them from their own codes.
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                exception.Code,
+                "Not found",
+                exception.Message);
         }
     }
 
-    private ObjectResult NotFoundProblem(string code) => Problem(
-        statusCode: StatusCodes.Status404NotFound,
-        title: "Tank not found",
-        detail: $"No chilling tank is registered under code '{code}'.");
+    private ObjectResult NotFoundProblem(string code) => this.IntakeProblem(
+        StatusCodes.Status404NotFound,
+        "entity_not_found",
+        "Tank not found",
+        $"No chilling tank is registered under code '{code}'.");
 }

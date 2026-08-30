@@ -1,4 +1,4 @@
-using MccIntakeService.Application.Abstractions;
+﻿using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Consignments;
 using MccIntakeService.Domain.Tanks;
@@ -145,11 +145,20 @@ public sealed class TankService : ITankService
         // between two officers pouring the same milk; this check only gives a better message.
         if (await _dbContext.TankPours.AnyAsync(pour => pour.ConsignmentId == consignment.Id, cancellationToken))
         {
-            throw new DomainValidationException(
-                $"Consignment {consignmentReference} has already been poured and cannot be poured again.");
+            throw new ConsignmentAlreadyPouredException(consignmentReference);
         }
 
-        _dbContext.TankPours.Add(TankPour.Pour(Guid.NewGuid(), tank, consignment, pouredBy, _clock.UtcNow));
+        // One reading of the clock, converted, so the instant and the day it is filed under
+        // cannot straddle a second boundary.
+        var pouredAtUtc = _clock.UtcNow;
+
+        _dbContext.TankPours.Add(TankPour.Pour(
+            Guid.NewGuid(),
+            tank,
+            consignment,
+            pouredBy,
+            pouredAtUtc,
+            _clock.ToLocal(pouredAtUtc)));
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return (await ManifestAsync(tank.Code, null, cancellationToken))!;

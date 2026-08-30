@@ -30,6 +30,26 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
         return JsonDocument.Parse(document).RootElement;
     }
 
+    /// <summary>
+    /// Every route on this service is [Authorize], and Swagger UI cannot send a token for a scheme
+    /// the document does not declare, so the endpoints were published but not exercisable.
+    /// </summary>
+    [Fact]
+    public async Task The_document_declares_the_bearer_scheme_and_applies_it()
+    {
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        var swagger = await SwaggerAsync(client);
+
+        var scheme = swagger
+            .GetProperty("components")
+            .GetProperty("securitySchemes")
+            .GetProperty("Bearer");
+
+        Assert.Equal("http", scheme.GetProperty("type").GetString());
+        Assert.Equal("bearer", scheme.GetProperty("scheme").GetString());
+        Assert.NotEmpty(swagger.GetProperty("security").EnumerateArray().ToList());
+    }
+
     [Fact]
     public async Task The_documented_422_schema_includes_code_cutoff_and_arrival_time()
     {

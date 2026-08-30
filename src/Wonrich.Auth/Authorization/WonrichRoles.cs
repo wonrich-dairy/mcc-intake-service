@@ -1,7 +1,7 @@
 namespace Wonrich.Auth.Authorization;
 
 /// <summary>
-/// The seven roles configured across the Wonrich Dairy services (SCRUM-34). A user holds exactly
+/// The six roles configured across the Wonrich Dairy services (SCRUM-34). A user holds exactly
 /// one of these at a time, assigned through user management (SCRUM-45).
 /// </summary>
 /// <remarks>
@@ -14,7 +14,7 @@ public static class WonrichRoles
     /// <summary>Full access, including user administration.</summary>
     public const string SystemAdministrator = "SystemAdministrator";
 
-    /// <summary>Runs a chilling centre: maintains societies and oversees intake.</summary>
+    /// <summary>Runs a chilling centre: maintains societies, oversees intake, and signs milk out to the factory.</summary>
     public const string MccManager = "MccManager";
 
     /// <summary>Registers arriving consignments at the chilling centre gate.</summary>
@@ -22,9 +22,6 @@ public static class WonrichRoles
 
     /// <summary>Runs quality test panels and accepts or rejects consignments.</summary>
     public const string QualityAnalyst = "QualityAnalyst";
-
-    /// <summary>Records bowser dispatch notes and moves milk to the factory.</summary>
-    public const string BowserOperator = "BowserOperator";
 
     /// <summary>Screens arrivals and creates batches at factory intake.</summary>
     public const string FactoryIntakeOfficer = "FactoryIntakeOfficer";
@@ -39,7 +36,6 @@ public static class WonrichRoles
         MccManager,
         IntakeOfficer,
         QualityAnalyst,
-        BowserOperator,
         FactoryIntakeOfficer,
         ProductionManager
     ];

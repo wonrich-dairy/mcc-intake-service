@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Wonrich.Auth.Authorization;
@@ -33,7 +33,7 @@ public sealed class CreateUserRequest
     [StringLength(200, MinimumLength = 12, ErrorMessage = "A password must be at least 12 characters.")]
     public string Password { get; set; } = string.Empty;
 
-    /// <summary>One of the seven configured roles.</summary>
+    /// <summary>One of the six configured roles.</summary>
     /// <example>IntakeOfficer</example>
     [Required(ErrorMessage = "A role is required.")]
     public string Role { get; set; } = string.Empty;
@@ -83,7 +83,7 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>The roles an account can be assigned, for the administrator's role picker.</summary>
-    /// <response code="200">The seven configured roles.</response>
+    /// <response code="200">The six configured roles.</response>
     [HttpGet("roles")]
     [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK, "application/json")]
     public ActionResult<IReadOnlyList<string>> Roles() => Ok(WonrichRoles.All);
@@ -122,7 +122,7 @@ public class UsersController : ControllerBase
 
     /// <summary>Creates an account.</summary>
     /// <response code="201">The account was created.</response>
-    /// <response code="400">The details are incomplete, or the role is not one of the seven.</response>
+    /// <response code="400">The details are incomplete, or the role is not one of the six.</response>
     /// <response code="409">That username is already taken.</response>
     [HttpPost]
     [ProducesResponseType(typeof(UserView), StatusCodes.Status201Created, "application/json")]
@@ -155,16 +155,13 @@ public class UsersController : ControllerBase
         catch (ArgumentException exception)
         {
             // An unconfigured role or a blank field: the caller's mistake, not a server fault.
-            return Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "The account details are not valid",
-                detail: exception.Message);
+            return RejectedField(exception);
         }
     }
 
     /// <summary>Amends an account. The username itself cannot be changed.</summary>
     /// <response code="200">The account was updated.</response>
-    /// <response code="400">The details are invalid, or the role is not one of the seven.</response>
+    /// <response code="400">The details are invalid, or the role is not one of the six.</response>
     /// <response code="404">No account carries that identifier.</response>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(UserView), StatusCodes.Status200OK, "application/json")]
@@ -217,11 +214,27 @@ public class UsersController : ControllerBase
         }
         catch (ArgumentException exception)
         {
-            return Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "The account details are not valid",
-                detail: exception.Message);
+            return RejectedField(exception);
         }
+    }
+
+    /// <summary>
+    /// Reports a field the domain rejected — an unconfigured role, a blank name — in the same
+    /// shape [ApiController] produces for model validation, which is what these endpoints
+    /// document. Problem(...) returned a bare ProblemDetails instead, so a client reading
+    /// <c>errors</c> found the field for a missing role but nothing for an invalid one.
+    /// </summary>
+    private ActionResult<UserView> RejectedField(ArgumentException exception)
+    {
+        // ArgumentException appends " (Parameter 'role')" to its message; the field is already
+        // the key it is filed under, so the suffix would only repeat it back.
+        var message = exception.ParamName is null
+            ? exception.Message
+            : exception.Message.Replace($" (Parameter '{exception.ParamName}')", string.Empty);
+
+        ModelState.AddModelError(exception.ParamName ?? string.Empty, message);
+
+        return ValidationProblem(ModelState);
     }
 
     private ObjectResult NotFoundProblem(Guid id) => Problem(

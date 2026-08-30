@@ -1,4 +1,4 @@
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.Extensions.Options;
 using Wonrich.Auth.Authorization;
@@ -92,7 +92,7 @@ public class AccessTokenIssuerTests
     }
 
     [Fact]
-    public void A_role_outside_the_configured_seven_is_refused()
+    public void A_role_outside_the_configured_six_is_refused()
     {
         var (issuer, _) = Create();
 
@@ -106,7 +106,6 @@ public class AccessTokenIssuerTests
     [InlineData(WonrichRoles.MccManager)]
     [InlineData(WonrichRoles.IntakeOfficer)]
     [InlineData(WonrichRoles.QualityAnalyst)]
-    [InlineData(WonrichRoles.BowserOperator)]
     [InlineData(WonrichRoles.FactoryIntakeOfficer)]
     [InlineData(WonrichRoles.ProductionManager)]
     public void Every_configured_role_can_be_issued_a_token(string role)
@@ -117,9 +116,9 @@ public class AccessTokenIssuerTests
     }
 
     [Fact]
-    public void All_seven_roles_are_configured()
+    public void All_six_roles_are_configured()
     {
-        Assert.Equal(7, WonrichRoles.All.Count);
+        Assert.Equal(6, WonrichRoles.All.Count);
         Assert.False(WonrichRoles.IsConfigured("NotARole"));
         Assert.False(WonrichRoles.IsConfigured(null));
     }

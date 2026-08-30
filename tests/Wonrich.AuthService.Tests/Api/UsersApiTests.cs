@@ -1,6 +1,7 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 using Wonrich.Auth.Authorization;
 using Wonrich.AuthService.Application;
 using Wonrich.AuthService.Tests.Support;
@@ -12,6 +13,9 @@ public class UsersApiTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>Stands in for an account identifier; authorization refuses before it is read.</summary>
+    private static readonly Guid SomeAccount = new("6f0f6f1a-0045-4a2b-9c3d-000000000001");
+
     private static object NewUser(string userName = "n.silva", string role = WonrichRoles.IntakeOfficer) => new
     {
         userName,
@@ -21,12 +25,20 @@ public class UsersApiTests
         facility = "MCC-KANDY"
     };
 
-    /// <summary>Every endpoint the ManageUsers policy guards.</summary>
+    /// <summary>
+    /// Every endpoint the ManageUsers policy guards. The policy is declared on the controller, so
+    /// a route left out here is a route nobody checks answers 401 — the identifier is never looked
+    /// up, because authorization runs first.
+    /// </summary>
     public static TheoryData<string, string> GuardedEndpoints() => new()
     {
         { "GET", "/api/users" },
         { "GET", "/api/users/roles" },
-        { "POST", "/api/users" }
+        { "GET", $"/api/users/{SomeAccount}" },
+        { "POST", "/api/users" },
+        { "PUT", $"/api/users/{SomeAccount}" },
+        { "POST", $"/api/users/{SomeAccount}/deactivate" },
+        { "POST", $"/api/users/{SomeAccount}/reactivate" }
     };
 
     [Theory]
@@ -36,9 +48,12 @@ public class UsersApiTests
         using var factory = new AuthApiFactory();
         var anonymous = factory.CreateClient();
 
-        var response = method == "GET"
-            ? await anonymous.GetAsync(route)
-            : await anonymous.PostAsJsonAsync(route, NewUser());
+        var response = method switch
+        {
+            "GET" => await anonymous.GetAsync(route),
+            "PUT" => await anonymous.PutAsJsonAsync(route, NewUser()),
+            _ => await anonymous.PostAsJsonAsync(route, NewUser())
+        };
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -47,7 +62,6 @@ public class UsersApiTests
     [InlineData(WonrichRoles.MccManager)]
     [InlineData(WonrichRoles.IntakeOfficer)]
     [InlineData(WonrichRoles.QualityAnalyst)]
-    [InlineData(WonrichRoles.BowserOperator)]
     [InlineData(WonrichRoles.FactoryIntakeOfficer)]
     [InlineData(WonrichRoles.ProductionManager)]
     public async Task Only_an_administrator_may_administer_accounts(string role)
@@ -138,6 +152,25 @@ public class UsersApiTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    /// <summary>
+    /// A field the domain rejects and a field model validation rejects both answer 400, and both
+    /// are documented as ValidationProblemDetails, so a client reads `errors` for either.
+    /// </summary>
+    [Fact]
+    public async Task A_rejected_field_is_reported_in_the_documented_validation_shape()
+    {
+        using var factory = new AuthApiFactory();
+        var admin = factory.CreateClientAs(WonrichRoles.SystemAdministrator);
+
+        var response = await admin.PostAsJsonAsync("/api/users", NewUser(role: "Chief Cheese Taster"));
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(JsonOptions);
+
+        var error = Assert.Single(problem!.Errors);
+        Assert.Equal("role", error.Key);
+        Assert.Contains("Chief Cheese Taster", Assert.Single(error.Value));
+        Assert.DoesNotContain("Parameter", Assert.Single(error.Value));
+    }
+
     [Fact]
     public async Task A_short_password_returns_400()
     {
@@ -202,26 +235,26 @@ public class UsersApiTests
             userName = "s.fernando",
             displayName = "Sunil Fernando",
             password = "another-long-password",
-            role = WonrichRoles.BowserOperator
+            role = WonrichRoles.FactoryIntakeOfficer
         });
 
         var searched = await admin.GetFromJsonAsync<List<UserView>>("/api/users?search=silva", JsonOptions);
         Assert.Equal("n.silva", Assert.Single(searched!).UserName);
 
         var filtered = await admin.GetFromJsonAsync<List<UserView>>(
-            $"/api/users?role={WonrichRoles.BowserOperator}", JsonOptions);
+            $"/api/users?role={WonrichRoles.FactoryIntakeOfficer}", JsonOptions);
         Assert.Equal("s.fernando", Assert.Single(filtered!).UserName);
     }
 
     [Fact]
-    public async Task The_role_picker_offers_all_seven_roles()
+    public async Task The_role_picker_offers_all_six_roles()
     {
         using var factory = new AuthApiFactory();
         var admin = factory.CreateClientAs(WonrichRoles.SystemAdministrator);
 
         var roles = await admin.GetFromJsonAsync<List<string>>("/api/users/roles", JsonOptions);
 
-        Assert.Equal(7, roles!.Count);
+        Assert.Equal(6, roles!.Count);
         Assert.Equal(WonrichRoles.All, roles);
     }
 
