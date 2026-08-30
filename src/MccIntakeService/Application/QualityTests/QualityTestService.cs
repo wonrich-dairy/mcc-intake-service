@@ -16,9 +16,17 @@ public sealed record RecordTestCommand(
     KqColour KqColour,
     IReadOnlyDictionary<AlcoholStage, StageOutcome> AlcoholOutcomes,
     TestVerdict Verdict,
+    SensoryCheck? Sensory = null,
     string? FailedParameter = null,
     string? FailedValue = null,
-    string? TestedBy = null);
+    string? TestedBy = null)
+{
+    /// <summary>
+    /// The senses, defaulting to a sound sample. An older client that does not send them is
+    /// recorded as having found nothing wrong, which is what its silence meant.
+    /// </summary>
+    public SensoryCheck SensoryOrSound => Sensory ?? SensoryCheck.Sound;
+}
 
 /// <summary>One derived value or reading, and whether it sits outside its configured limit.</summary>
 /// <param name="Measure">What was measured.</param>
@@ -58,6 +66,9 @@ public sealed record QualityTestView(
     decimal TemperatureCelsius,
     decimal WaterPercent,
     string KqColour,
+    bool SmellOk,
+    bool ColourOk,
+    bool TasteOk,
     decimal CorrectedClr,
     decimal Snf,
     decimal TotalSolids,
@@ -115,7 +126,7 @@ public sealed class QualityTestService : IQualityTestService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        return ToPreview(ReadingsFrom(command), Evaluate(command));
+        return ToPreview(ReadingsFrom(command), command.SensoryOrSound, Evaluate(command));
     }
 
     public async Task<QualityTestView> RecordAsync(
@@ -143,6 +154,7 @@ public sealed class QualityTestService : IQualityTestService
             Guid.NewGuid(),
             consignment,
             ReadingsFrom(command),
+            command.SensoryOrSound,
             result,
             command.Verdict,
             command.FailedParameter,
@@ -184,7 +196,10 @@ public sealed class QualityTestService : IQualityTestService
         command.AlcoholOutcomes,
         command.KqColour);
 
-    private static TestPreview ToPreview(PanelReadings readings, PanelResult result)
+    private static TestPreview ToPreview(
+        PanelReadings readings,
+        SensoryCheck sensory,
+        PanelResult result)
     {
         var failuresByMeasure = result.Failures.ToDictionary(
             failure => failure.Measure,
@@ -197,6 +212,12 @@ public sealed class QualityTestService : IQualityTestService
             failuresByMeasure.ContainsKey(name),
             failuresByMeasure.GetValueOrDefault(name));
 
+        static MeasureView Sense(string name, bool ok) => new(
+            name,
+            ok ? "OK" : "Not OK",
+            !ok,
+            ok ? null : $"The officer found the sample's {name.ToLowerInvariant()} was not right.");
+
         var measures = new List<MeasureView>
         {
             Measure("FatPercent", result.Composition.FatPercent.ToString("0.00")),
@@ -204,7 +225,14 @@ public sealed class QualityTestService : IQualityTestService
             Measure("Snf", result.Composition.Snf.ToString("0.00")),
             Measure("WaterPercent", readings.WaterPercent.ToString("0.00")),
             Measure("Stability", result.Cascade.Grade.ToString()),
-            Measure("KqColour", result.KqColour.ToString())
+            Measure("KqColour", result.KqColour.ToString()),
+
+            // A sense the officer found wrong is shown like any other failed measure, so it can be
+            // named as the reason for a rejection. Sour milk is a reason to turn a delivery away
+            // whatever the lactometer reads.
+            Sense("Smell", sensory.SmellOk),
+            Sense("Colour", sensory.ColourOk),
+            Sense("Taste", sensory.TasteOk)
         };
 
         return new TestPreview(
@@ -215,7 +243,7 @@ public sealed class QualityTestService : IQualityTestService
             result.Cascade.HaltedAt.ToString(),
             result.Cascade.IsCurdled,
             measures,
-            result.Passed);
+            result.Passed && sensory.Passed);
     }
 
     private static QualityTestView ToView(QualityTest test, string reference) => new(
@@ -227,6 +255,9 @@ public sealed class QualityTestService : IQualityTestService
         test.TemperatureCelsius,
         test.WaterPercent,
         test.KqColour,
+        test.SmellOk,
+        test.ColourOk,
+        test.TasteOk,
         test.CorrectedClr,
         test.Snf,
         test.TotalSolids,

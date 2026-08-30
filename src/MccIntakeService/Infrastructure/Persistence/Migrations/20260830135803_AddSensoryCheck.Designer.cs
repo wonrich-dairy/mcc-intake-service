@@ -3,6 +3,7 @@ using System;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MccIntakeService.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MccIntakeDbContext))]
-    partial class MccIntakeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260830135803_AddSensoryCheck")]
+    partial class AddSensoryCheck
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -103,204 +106,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ux_consignment_cans_consignment_can_number");
 
                     b.ToTable("consignment_cans", (string)null);
-                });
-
-            modelBuilder.Entity("MccIntakeService.Domain.Dispatch.DispatchNote", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("BowserRegistration")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<DateOnly>("DispatchDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateTime>("DispatchedAtLocal")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("DispatchedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("DriverName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<decimal>("FatPercent")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<string>("KqColour")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<DateTime>("RecordedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Reference")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<string>("Remarks")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<decimal>("Snf")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<string>("StabilityGrade")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<decimal>("TemperatureCelsius")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<decimal>("TotalQuantityLitres")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DispatchDate")
-                        .HasDatabaseName("ix_dispatch_notes_date");
-
-                    b.HasIndex("Reference")
-                        .IsUnique()
-                        .HasDatabaseName("ux_dispatch_notes_reference");
-
-                    b.ToTable("dispatch_notes", (string)null);
-                });
-
-            modelBuilder.Entity("MccIntakeService.Domain.Dispatch.DispatchSource", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("DispatchNoteId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<decimal>("QuantityLitres")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<Guid>("TankId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TankId");
-
-                    b.HasIndex("DispatchNoteId", "TankId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_dispatch_sources_note_tank");
-
-                    b.ToTable("dispatch_sources", (string)null);
-                });
-
-            modelBuilder.Entity("MccIntakeService.Domain.Factory.ArrivalScreening", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateOnly>("ArrivalDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateTime>("ArrivedAtLocal")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("ColourPassed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid>("DispatchNoteId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("FailedParameters")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Outcome")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<DateTime>("ScreenedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ScreenedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<bool>("SmellPassed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<decimal>("TemperatureCelsius")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<bool>("TemperaturePassed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DispatchNoteId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_arrival_screenings_dispatch_note");
-
-                    b.ToTable("arrival_screenings", (string)null);
-                });
-
-            modelBuilder.Entity("MccIntakeService.Domain.Factory.Batch", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("ArrivalScreeningId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateOnly>("BatchDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid>("DispatchNoteId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Reference")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArrivalScreeningId")
-                        .IsUnique();
-
-                    b.HasIndex("BatchDate")
-                        .HasDatabaseName("ix_batches_date");
-
-                    b.HasIndex("DispatchNoteId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_batches_dispatch_note");
-
-                    b.HasIndex("Reference")
-                        .IsUnique()
-                        .HasDatabaseName("ux_batches_reference");
-
-                    b.ToTable("batches", (string)null);
                 });
 
             modelBuilder.Entity("MccIntakeService.Domain.QualityTests.AlcoholStageRecord", b =>
@@ -513,109 +318,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MccIntakeService.Domain.Tanks.ChillingTank", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<decimal>("CapacityLitres")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<DateTime?>("ClosedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<bool>("IsClosed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ux_chilling_tanks_code");
-
-                    b.ToTable("chilling_tanks", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("9a1c2b30-0001-4d5e-8f60-000000000001"),
-                            CapacityLitres = 5000m,
-                            Code = "T1",
-                            IsClosed = false,
-                            Name = "Chilling Tank 1"
-                        },
-                        new
-                        {
-                            Id = new Guid("9a1c2b30-0002-4d5e-8f60-000000000002"),
-                            CapacityLitres = 5000m,
-                            Code = "T2",
-                            IsClosed = false,
-                            Name = "Chilling Tank 2"
-                        },
-                        new
-                        {
-                            Id = new Guid("9a1c2b30-0003-4d5e-8f60-000000000003"),
-                            CapacityLitres = 3000m,
-                            Code = "T3",
-                            IsClosed = false,
-                            Name = "Chilling Tank 3"
-                        });
-                });
-
-            modelBuilder.Entity("MccIntakeService.Domain.Tanks.TankPour", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("ConsignmentId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateOnly>("PourDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateTime>("PouredAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("PouredBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<decimal>("QuantityKg")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<decimal>("QuantityLitres")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<Guid>("TankId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConsignmentId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_tank_pours_consignment");
-
-                    b.HasIndex("TankId", "PourDate")
-                        .HasDatabaseName("ix_tank_pours_tank_date");
-
-                    b.ToTable("tank_pours", (string)null);
-                });
-
             modelBuilder.Entity("MccIntakeService.Models.MilkCollectionCenter", b =>
                 {
                     b.Property<int>("Id")
@@ -677,51 +379,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MccIntakeService.Domain.Dispatch.DispatchSource", b =>
-                {
-                    b.HasOne("MccIntakeService.Domain.Dispatch.DispatchNote", null)
-                        .WithMany("Sources")
-                        .HasForeignKey("DispatchNoteId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MccIntakeService.Domain.Tanks.ChillingTank", "Tank")
-                        .WithMany()
-                        .HasForeignKey("TankId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Tank");
-                });
-
-            modelBuilder.Entity("MccIntakeService.Domain.Factory.ArrivalScreening", b =>
-                {
-                    b.HasOne("MccIntakeService.Domain.Dispatch.DispatchNote", "DispatchNote")
-                        .WithOne()
-                        .HasForeignKey("MccIntakeService.Domain.Factory.ArrivalScreening", "DispatchNoteId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("DispatchNote");
-                });
-
-            modelBuilder.Entity("MccIntakeService.Domain.Factory.Batch", b =>
-                {
-                    b.HasOne("MccIntakeService.Domain.Factory.ArrivalScreening", null)
-                        .WithOne("Batch")
-                        .HasForeignKey("MccIntakeService.Domain.Factory.Batch", "ArrivalScreeningId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MccIntakeService.Domain.Dispatch.DispatchNote", "DispatchNote")
-                        .WithMany()
-                        .HasForeignKey("DispatchNoteId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DispatchNote");
-                });
-
             modelBuilder.Entity("MccIntakeService.Domain.QualityTests.AlcoholStageRecord", b =>
                 {
                     b.HasOne("MccIntakeService.Domain.QualityTests.QualityTest", null)
@@ -742,38 +399,9 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                     b.Navigation("Consignment");
                 });
 
-            modelBuilder.Entity("MccIntakeService.Domain.Tanks.TankPour", b =>
-                {
-                    b.HasOne("MccIntakeService.Domain.Consignments.Consignment", "Consignment")
-                        .WithOne()
-                        .HasForeignKey("MccIntakeService.Domain.Tanks.TankPour", "ConsignmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MccIntakeService.Domain.Tanks.ChillingTank", "Tank")
-                        .WithMany()
-                        .HasForeignKey("TankId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Consignment");
-
-                    b.Navigation("Tank");
-                });
-
             modelBuilder.Entity("MccIntakeService.Domain.Consignments.Consignment", b =>
                 {
                     b.Navigation("Cans");
-                });
-
-            modelBuilder.Entity("MccIntakeService.Domain.Dispatch.DispatchNote", b =>
-                {
-                    b.Navigation("Sources");
-                });
-
-            modelBuilder.Entity("MccIntakeService.Domain.Factory.ArrivalScreening", b =>
-                {
-                    b.Navigation("Batch");
                 });
 
             modelBuilder.Entity("MccIntakeService.Domain.QualityTests.QualityTest", b =>
