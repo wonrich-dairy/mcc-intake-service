@@ -168,7 +168,7 @@ public class BatchTraceApiTests
     [Theory]
     [InlineData(WonrichRoles.IntakeOfficer)]
     [InlineData(WonrichRoles.MccManager)]
-    [InlineData(WonrichRoles.BowserOperator)]
+    [InlineData(WonrichRoles.FactoryIntakeOfficer)]
     public async Task A_role_outside_the_trace_policy_is_refused_with_403(string role)
     {
         using var factory = new IntakeApiFactory();
