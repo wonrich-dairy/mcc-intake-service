@@ -36,6 +36,27 @@ public class ChillingTank
 
     /// <summary>Working volume of the tank, in litres.</summary>
     public decimal CapacityLitres { get; private set; }
+
+    /// <summary>
+    /// The load currently in the tank. Closure is scoped to the fill rather than to the tank row
+    /// (SCRUM-8): a dispatch closes the load that left, and the tank goes on to hold the next
+    /// one. A tank that closed permanently would be usable exactly once.
+    /// </summary>
+    public int FillNumber { get; private set; } = 1;
+
+    /// <summary>When the tank's last fill was closed by a dispatch, if one has been.</summary>
+    public DateTime? LastClosedAtUtc { get; private set; }
+
+    /// <summary>
+    /// Closes the fill a dispatch has just emptied and opens the next one. The pours already on
+    /// the closed fill stay with it, which is what keeps the dispatch note reading the same way
+    /// once the tank starts filling again.
+    /// </summary>
+    public void CloseFill(DateTimeOffset closedAtUtc)
+    {
+        FillNumber++;
+        LastClosedAtUtc = closedAtUtc.UtcDateTime;
+    }
 }
 
 /// <summary>
@@ -56,14 +77,15 @@ public class TankPour
 
     private TankPour(
         Guid id,
-        Guid tankId,
+        ChillingTank tank,
         Consignment consignment,
         string? pouredBy,
         DateTimeOffset pouredAtUtc,
         DateTime pouredAtLocal)
     {
         Id = id;
-        TankId = tankId;
+        TankId = tank.Id;
+        FillNumber = tank.FillNumber;
         ConsignmentId = consignment.Id;
         QuantityLitres = consignment.TotalQuantityLitres;
         QuantityKg = consignment.TotalQuantityKg;
@@ -77,6 +99,13 @@ public class TankPour
     public Guid TankId { get; private set; }
 
     public ChillingTank? Tank { get; private set; }
+
+    /// <summary>
+    /// The tank fill this pour joined. A dispatch note resolves its manifest through the fill it
+    /// drew from, so milk poured in after a bowser has left belongs to the next load rather than
+    /// to the one already gone.
+    /// </summary>
+    public int FillNumber { get; private set; }
 
     public Guid ConsignmentId { get; private set; }
 
@@ -130,6 +159,6 @@ public class TankPour
                     : $"Consignment {consignment.Reference} was rejected at the gate and cannot be poured.");
         }
 
-        return new TankPour(id, tank.Id, consignment, pouredBy, pouredAtUtc, pouredAtLocal);
+        return new TankPour(id, tank, consignment, pouredBy, pouredAtUtc, pouredAtLocal);
     }
 }
