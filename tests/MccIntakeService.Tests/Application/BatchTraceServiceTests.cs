@@ -70,7 +70,7 @@ public class BatchTraceServiceTests : IDisposable
                 _clock).RecordAsync(reference, new RecordTestCommand(
                     fat, raw, 29.0m, 0m, KqColour.Blue,
                     new Dictionary<AlcoholStage, StageOutcome> { [AlcoholStage.Alcohol80] = StageOutcome.Negative },
-                    TestVerdict.Accept, null, null, "gate-officer"));
+                    TestVerdict.Accept, TestedBy: "gate-officer"));
         }
 
         await using var pouring = _database.CreateContext();
@@ -337,7 +337,7 @@ public class BatchTraceServiceTests : IDisposable
         var result = new QualityPanelEvaluator(Options.Create(Thresholds)).Evaluate(readings);
 
         return QualityTest.Record(
-            Guid.NewGuid(), consignment, readings, result,
+            Guid.NewGuid(), consignment, readings, SensoryCheck.Sound, result,
             TestVerdict.Accept, null, null, "officer", DateTimeOffset.UtcNow);
     }
 
