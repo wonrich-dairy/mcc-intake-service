@@ -1,4 +1,4 @@
-using MccIntakeService.Application.Consignments;
+﻿using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.QualityTests;
 using MccIntakeService.Configuration;
 using MccIntakeService.Domain.Common;
@@ -59,10 +59,15 @@ public class QualityTestServiceTests : IDisposable
         decimal water = 0m,
         KqColour kq = KqColour.Blue,
         string? failedParameter = null,
-        string? failedValue = null) =>
+        string? failedValue = null,
+        SensoryCheck? sensory = null) =>
         new(fat, raw, temperature, water, kq,
             new Dictionary<AlcoholStage, StageOutcome> { [AlcoholStage.Alcohol80] = StageOutcome.Negative },
-            verdict, failedParameter, failedValue, "officer-1");
+            verdict,
+            Sensory: sensory,
+            FailedParameter: failedParameter,
+            FailedValue: failedValue,
+            TestedBy: "officer-1");
 
     /// <summary>Readings whose cascade clots all the way through boiling.</summary>
     private static RecordTestCommand CurdledPanel(TestVerdict verdict) =>
@@ -74,7 +79,10 @@ public class QualityTestServiceTests : IDisposable
                 [AlcoholStage.Alcohol68] = StageOutcome.Positive,
                 [AlcoholStage.ClotOnBoiling] = StageOutcome.Positive
             },
-            verdict, "Stability", "Curdled", "officer-1");
+            verdict,
+            FailedParameter: "Stability",
+            FailedValue: "Curdled",
+            TestedBy: "officer-1");
 
     [Fact]
     public void The_preview_derives_clr_snf_and_ts_before_anything_is_recorded()
@@ -306,6 +314,86 @@ public class QualityTestServiceTests : IDisposable
         using var _ = context;
 
         Assert.Throws<ArgumentNullException>(() => service.Preview(null!));
+    }
+
+    [Fact]
+    public void A_sound_sample_reports_every_sense_as_ok()
+    {
+        var service = CreateService(out var context);
+        using var _ = context;
+
+        var preview = service.Preview(SoundPanel());
+
+        foreach (var sense in new[] { "Smell", "Colour", "Taste" })
+        {
+            var measure = preview.Measures.Single(m => m.Measure == sense);
+
+            Assert.Equal("OK", measure.Value);
+            Assert.False(measure.IsOutsideThreshold);
+        }
+
+        Assert.True(preview.MeetsStandard);
+    }
+
+    [Theory]
+    [InlineData(false, true, true, "Smell")]
+    [InlineData(true, false, true, "Colour")]
+    [InlineData(true, true, false, "Taste")]
+    public void A_sense_the_officer_found_wrong_fails_the_panel(
+        bool smell,
+        bool colour,
+        bool taste,
+        string expected)
+    {
+        var service = CreateService(out var context);
+        using var _ = context;
+
+        // Every instrument reading is sound here: sour milk is a reason to turn a delivery away
+        // whatever the lactometer reads.
+        var preview = service.Preview(SoundPanel(sensory: new SensoryCheck(smell, colour, taste)));
+
+        var failed = preview.Measures.Single(measure => measure.IsOutsideThreshold);
+
+        Assert.Equal(expected, failed.Measure);
+        Assert.Equal("Not OK", failed.Value);
+        Assert.Contains(expected.ToLowerInvariant(), failed.Detail);
+        Assert.False(preview.MeetsStandard);
+    }
+
+    [Fact]
+    public async Task The_senses_are_recorded_as_the_officer_found_them()
+    {
+        var reference = await RegisterConsignmentAsync();
+        var service = CreateService(out var context);
+        using var _ = context;
+
+        var view = await service.RecordAsync(
+            reference,
+            SoundPanel(
+                verdict: TestVerdict.Reject,
+                failedParameter: "Smell",
+                failedValue: "Not OK",
+                sensory: new SensoryCheck(SmellOk: false, ColourOk: true, TasteOk: true)));
+
+        Assert.False(view.SmellOk);
+        Assert.True(view.ColourOk);
+        Assert.True(view.TasteOk);
+    }
+
+    [Fact]
+    public async Task A_panel_that_says_nothing_about_the_senses_records_them_as_sound()
+    {
+        // A client written before the sensory check existed did not observe a fault, and reading
+        // its panels back as faulty would restate history.
+        var reference = await RegisterConsignmentAsync();
+        var service = CreateService(out var context);
+        using var _ = context;
+
+        var view = await service.RecordAsync(reference, SoundPanel());
+
+        Assert.True(view.SmellOk);
+        Assert.True(view.ColourOk);
+        Assert.True(view.TasteOk);
     }
 
     public void Dispose()
