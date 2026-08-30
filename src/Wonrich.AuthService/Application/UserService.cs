@@ -1,4 +1,4 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Wonrich.Auth.Authorization;
 using Wonrich.AuthService.Domain;
@@ -87,10 +87,12 @@ public interface IUserService
 public sealed class UserService : IUserService
 {
     private readonly AuthDbContext _dbContext;
+    private readonly TimeProvider _time;
 
-    public UserService(AuthDbContext dbContext)
+    public UserService(AuthDbContext dbContext, TimeProvider time)
     {
         _dbContext = dbContext;
+        _time = time;
     }
 
     public async Task<IReadOnlyList<UserView>> ListAsync(
@@ -209,7 +211,7 @@ public sealed class UserService : IUserService
 
         foreach (var token in tokens)
         {
-            token.Revoke(DateTime.UtcNow);
+            token.Revoke(_time.GetUtcNow().UtcDateTime);
         }
     }
 
