@@ -24,6 +24,13 @@ public sealed class ChillingTankConfiguration : IEntityTypeConfiguration<Chillin
             .HasPrecision(10, 2)
             .IsRequired();
 
+        // Tanks that predate dispatch notes are on their first fill.
+        builder.Property(tank => tank.FillNumber)
+            .HasDefaultValue(1)
+            .IsRequired();
+
+        builder.Property(tank => tank.LastClosedAtUtc);
+
         builder.HasIndex(tank => tank.Code)
             .IsUnique()
             .HasDatabaseName("ux_chilling_tanks_code");
@@ -42,6 +49,7 @@ public sealed class TankPourConfiguration : IEntityTypeConfiguration<TankPour>
 
         builder.Property(pour => pour.QuantityLitres).HasPrecision(10, 2).IsRequired();
         builder.Property(pour => pour.QuantityKg).HasPrecision(10, 2).IsRequired();
+        builder.Property(pour => pour.FillNumber).HasDefaultValue(1).IsRequired();
         builder.Property(pour => pour.PouredBy).HasMaxLength(100);
         builder.Property(pour => pour.PouredAtUtc).IsRequired();
         builder.Property(pour => pour.PourDate).IsRequired();
@@ -54,6 +62,10 @@ public sealed class TankPourConfiguration : IEntityTypeConfiguration<TankPour>
         // The manifest is queried by tank and by date, so index the pair.
         builder.HasIndex(pour => new { pour.TankId, pour.PourDate })
             .HasDatabaseName("ix_tank_pours_tank_date");
+
+        // What a tank holds, and what a dispatch note resolves through, are both read by fill.
+        builder.HasIndex(pour => new { pour.TankId, pour.FillNumber })
+            .HasDatabaseName("ix_tank_pours_tank_fill");
 
         builder.HasOne(pour => pour.Tank)
             .WithMany()

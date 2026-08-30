@@ -80,7 +80,7 @@ excludes generated EF migrations from the coverage figure.
 | `GET` | `/api/tanks/{code}/manifest` | The tank's manifest; `date` filters the entries. |
 | `GET` | `/api/dispatch-notes` | Bowser dispatch notes; `date` filters by dispatch date (SCRUM-8). |
 | `GET` | `/api/dispatch-notes/{reference}` | One note, resolved to its contributing consignments. |
-| `POST` | `/api/dispatch-notes` | Record a note and close the tanks it drew from. |
+| `POST` | `/api/dispatch-notes` | Record a note and close the fill of every tank it empties. |
 | `POST` | `/api/factory/arrivals` | Screen an arriving bowser and create the batch (SCRUM-9). |
 | `GET` | `/api/factory/batches` | Batches; `date` and `dispatchNote` filter. |
 | `GET` | `/api/factory/batches/{reference}` | One batch by reference. |
@@ -146,18 +146,39 @@ entries but never the tank totals, because what a tank holds does not change wit
 being looked at. A pour is filed under the centre's day, not UTC: between midnight and 05:30 the
 two disagree, and the officer's day is the one the rest of the centre runs on.
 
+A tank holds one **fill** at a time, and its totals are that fill rather than everything it has
+ever held. Totalling every pour would report milk that left on a bowser days ago as still there,
+and the manager selecting source tanks would find out at submission. `availableQuantityLitres` is
+what can still be drawn — the fill, less anything already dispatched off it. Manifest entries
+carry their `fillNumber`, so the load in the tank now is distinguishable from the ones that have
+already gone.
+
 ### Bowser dispatch
 A dispatch note (SCRUM-8) records which tanks a bowser was loaded from, how much came from each,
 and the panel taken at loading. The reference is `DN-YYYYMMDD-NN`, issued per dispatch date.
 
 The total is summed from the per-tank quantities rather than supplied, and a tank cannot give up
-more than it currently holds — everything poured in, less anything already dispatched out.
-Submitting a note **closes** every tank it drew from: milk poured in after the bowser left would
-corrupt the manifest the note resolves through. Closing happens as part of recording the note, not
-as a separate step a caller could forget.
+more than its current fill holds — poured into that fill, less anything already dispatched off it.
+Every panel reading is required: bound as a plain number an omitted one would be taken as `0`, and
+`kqColour` and `stabilityGrade` would default to the best reading on their scales, so a note with
+no panel at all would read back as a fully panelled, pristine load.
 
-Each source resolves to the consignments that contributed to it through the tank manifest, which
-is what lets the factory trace a failure back to a society. Notes are read-only once submitted.
+Submitting a note **closes the fill** of every tank it empties, as part of recording the note
+rather than as a separate step a caller could forget. Closure is scoped to the load, not to the
+tank row: a tank that closed permanently would be usable exactly once, and the centre — which has
+three tanks and no route to add a fourth — would get three dispatch notes in the lifetime of the
+database. A draw that leaves a balance behind has not finished the load, so the fill stays open
+and the rest stays drawable rather than being stranded.
+
+`dispatchedAtLocal` is bounded at both ends. It cannot be in the future, on the same one-minute
+skew allowance the gate gives arrival times, and it cannot predate the first pour of the fill
+being drawn — milk cannot leave before it arrived. Unbounded, a mistyped year would issue the
+reference under that date on a record nothing can afterwards amend.
+
+Each source resolves to the consignments that contributed to it through the manifest of the fill
+it drew from, which is what lets the factory trace a failure back to a society. Reading the whole
+tank instead would fold in milk that arrived after the bowser had already gone. Notes are
+read-only once submitted.
 
 ### Factory intake
 An arriving bowser is screened on smell, colour and temperature (SCRUM-9). A failure on any one

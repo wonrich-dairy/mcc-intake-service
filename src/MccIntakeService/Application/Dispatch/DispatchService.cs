@@ -53,7 +53,7 @@ public sealed record DispatchNoteView(
 /// <summary>Bowser dispatch notes (SCRUM-8).</summary>
 public interface IDispatchService
 {
-    /// <summary>Records a dispatch note and closes the tanks it drew from.</summary>
+    /// <summary>Records a dispatch note, closing the fill of every tank it empties.</summary>
     Task<DispatchNoteView> RecordAsync(
         RecordDispatchCommand command,
         CancellationToken cancellationToken = default);
@@ -107,11 +107,11 @@ public sealed class DispatchService : IDispatchService
             throw new EntityNotFoundException("ChillingTank", string.Join(", ", missing));
         }
 
-        var available = new Dictionary<Guid, (ChillingTank Tank, decimal AvailableLitres)>();
+        var fills = new Dictionary<Guid, TankFill>();
 
         foreach (var tank in tanks)
         {
-            available[tank.Id] = (tank, await AvailableLitresAsync(tank.Id, cancellationToken));
+            fills[tank.Id] = await CurrentFillAsync(tank, cancellationToken);
         }
 
         var dispatchedAtLocal = command.DispatchedAtLocal ?? _clock.LocalNow;
@@ -137,8 +137,9 @@ public sealed class DispatchService : IDispatchService
                 command.TemperatureCelsius,
                 command.Remarks),
             draws,
-            available,
+            fills,
             command.DispatchedBy,
+            _clock.LocalNow,
             _clock.UtcNow);
 
         _dbContext.DispatchNotes.Add(note);
@@ -190,21 +191,31 @@ public sealed class DispatchService : IDispatchService
                 .ThenInclude(source => source.Tank);
 
     /// <summary>
-    /// What a tank currently holds: everything poured in, less anything already dispatched out.
+    /// The load a tank is holding now: everything poured into its current fill, less anything
+    /// already drawn off that fill. Scoping to the fill is what lets a tank be used again — a
+    /// load that has gone to the factory leaves nothing behind for the next bowser to count.
     /// </summary>
-    private async Task<decimal> AvailableLitresAsync(Guid tankId, CancellationToken cancellationToken)
+    private async Task<TankFill> CurrentFillAsync(ChillingTank tank, CancellationToken cancellationToken)
     {
-        var poured = await _dbContext.TankPours
+        var pours = _dbContext.TankPours
             .AsNoTracking()
-            .Where(pour => pour.TankId == tankId)
+            .Where(pour => pour.TankId == tank.Id && pour.FillNumber == tank.FillNumber);
+
+        var poured = await pours
             .SumAsync(pour => (decimal?)pour.QuantityLitres, cancellationToken) ?? 0m;
+
+        var filledFromUtc = await pours
+            .MinAsync(pour => (DateTime?)pour.PouredAtUtc, cancellationToken);
 
         var dispatched = await _dbContext.DispatchSources
             .AsNoTracking()
-            .Where(source => source.TankId == tankId)
+            .Where(source => source.TankId == tank.Id && source.FillNumber == tank.FillNumber)
             .SumAsync(source => (decimal?)source.QuantityLitres, cancellationToken) ?? 0m;
 
-        return poured - dispatched;
+        return new TankFill(
+            tank,
+            poured - dispatched,
+            filledFromUtc is { } instant ? _clock.ToLocal(new DateTimeOffset(instant, TimeSpan.Zero)) : null);
     }
 
     /// <summary>
@@ -238,11 +249,13 @@ public sealed class DispatchService : IDispatchService
 
         foreach (var source in note.Sources)
         {
-            // The note resolves to its contributing consignments through the tank manifests,
-            // which is what lets the factory trace a failure back to a society.
+            // The note resolves to its contributing consignments through the tank manifest of the
+            // fill it drew from, which is what lets the factory trace a failure back to a society.
+            // Reading the whole tank instead would fold in milk that arrived after the bowser had
+            // already gone.
             var consignments = await _dbContext.TankPours
                 .AsNoTracking()
-                .Where(pour => pour.TankId == source.TankId)
+                .Where(pour => pour.TankId == source.TankId && pour.FillNumber == source.FillNumber)
                 .Include(pour => pour.Consignment)
                 .OrderBy(pour => pour.PouredAtUtc)
                 .Select(pour => pour.Consignment!.Reference)

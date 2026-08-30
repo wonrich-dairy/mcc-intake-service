@@ -38,25 +38,24 @@ public class ChillingTank
     public decimal CapacityLitres { get; private set; }
 
     /// <summary>
-    /// Whether the tank has been dispatched to the factory. A closed tank takes no further pours
-    /// (SCRUM-8): milk added after the bowser left would corrupt the manifest the dispatch note
-    /// resolves through.
+    /// The load currently in the tank. Closure is scoped to the fill rather than to the tank row
+    /// (SCRUM-8): a dispatch closes the load that left, and the tank goes on to hold the next
+    /// one. A tank that closed permanently would be usable exactly once.
     /// </summary>
-    public bool IsClosed { get; private set; }
+    public int FillNumber { get; private set; } = 1;
 
-    /// <summary>When the tank was closed by a dispatch.</summary>
-    public DateTime? ClosedAtUtc { get; private set; }
+    /// <summary>When the tank's last fill was closed by a dispatch, if one has been.</summary>
+    public DateTime? LastClosedAtUtc { get; private set; }
 
-    /// <summary>Closes the tank as part of recording a dispatch note.</summary>
-    public void CloseForDispatch(DateTimeOffset? closedAtUtc = null)
+    /// <summary>
+    /// Closes the fill a dispatch has just emptied and opens the next one. The pours already on
+    /// the closed fill stay with it, which is what keeps the dispatch note reading the same way
+    /// once the tank starts filling again.
+    /// </summary>
+    public void CloseFill(DateTimeOffset closedAtUtc)
     {
-        if (IsClosed)
-        {
-            return;
-        }
-
-        IsClosed = true;
-        ClosedAtUtc = (closedAtUtc ?? DateTimeOffset.UtcNow).UtcDateTime;
+        FillNumber++;
+        LastClosedAtUtc = closedAtUtc.UtcDateTime;
     }
 }
 
@@ -78,14 +77,15 @@ public class TankPour
 
     private TankPour(
         Guid id,
-        Guid tankId,
+        ChillingTank tank,
         Consignment consignment,
         string? pouredBy,
         DateTimeOffset pouredAtUtc,
         DateTime pouredAtLocal)
     {
         Id = id;
-        TankId = tankId;
+        TankId = tank.Id;
+        FillNumber = tank.FillNumber;
         ConsignmentId = consignment.Id;
         QuantityLitres = consignment.TotalQuantityLitres;
         QuantityKg = consignment.TotalQuantityKg;
@@ -99,6 +99,13 @@ public class TankPour
     public Guid TankId { get; private set; }
 
     public ChillingTank? Tank { get; private set; }
+
+    /// <summary>
+    /// The tank fill this pour joined. A dispatch note resolves its manifest through the fill it
+    /// drew from, so milk poured in after a bowser has left belongs to the next load rather than
+    /// to the one already gone.
+    /// </summary>
+    public int FillNumber { get; private set; }
 
     public Guid ConsignmentId { get; private set; }
 
@@ -142,12 +149,6 @@ public class TankPour
         ArgumentNullException.ThrowIfNull(tank);
         ArgumentNullException.ThrowIfNull(consignment);
 
-        if (tank.IsClosed)
-        {
-            throw new DomainValidationException(
-                $"Tank {tank.Code} has been dispatched and is closed to further pours.");
-        }
-
         // Only milk that passed the gate goes in a tank. An untested consignment has no verdict
         // yet, and a rejected one was turned away — neither is pourable.
         if (consignment.Status != ConsignmentStatus.Accepted)
@@ -158,6 +159,6 @@ public class TankPour
                     : $"Consignment {consignment.Reference} was rejected at the gate and cannot be poured.");
         }
 
-        return new TankPour(id, tank.Id, consignment, pouredBy, pouredAtUtc, pouredAtLocal);
+        return new TankPour(id, tank, consignment, pouredBy, pouredAtUtc, pouredAtLocal);
     }
 }
