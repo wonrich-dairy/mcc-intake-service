@@ -1,4 +1,4 @@
-using MccIntakeService.Application.Consignments;
+﻿using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.QualityTests;
 using MccIntakeService.Application.Tanks;
 using MccIntakeService.Configuration;
@@ -155,10 +155,13 @@ public class TankServiceTests : IDisposable
         await service.PourAsync("T1", reference, "officer-1");
 
         await using var second = _database.CreateContext();
-        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+        var exception = await Assert.ThrowsAsync<ConsignmentAlreadyPouredException>(
             () => new TankService(second, _clock).PourAsync("T2", reference, "officer-1"));
 
-        Assert.Contains("already been poured", exception.Message, StringComparison.OrdinalIgnoreCase);
+        // The API answers 409 from the code, so the code is what this asserts: rewording the
+        // message must not be able to change the status the caller sees.
+        Assert.Equal("consignment_already_poured", exception.Code);
+        Assert.Equal(reference, exception.Reference);
     }
 
     [Fact]

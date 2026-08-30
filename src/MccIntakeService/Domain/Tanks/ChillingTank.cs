@@ -81,7 +81,8 @@ public class TankPour
         Guid tankId,
         Consignment consignment,
         string? pouredBy,
-        DateTimeOffset pouredAtUtc)
+        DateTimeOffset pouredAtUtc,
+        DateTime pouredAtLocal)
     {
         Id = id;
         TankId = tankId;
@@ -90,7 +91,7 @@ public class TankPour
         QuantityKg = consignment.TotalQuantityKg;
         PouredBy = pouredBy;
         PouredAtUtc = pouredAtUtc.UtcDateTime;
-        PourDate = DateOnly.FromDateTime(pouredAtUtc.UtcDateTime);
+        PourDate = DateOnly.FromDateTime(pouredAtLocal);
     }
 
     public Guid Id { get; private set; }
@@ -114,7 +115,11 @@ public class TankPour
 
     public DateTime PouredAtUtc { get; private set; }
 
-    /// <summary>Date of the pour, so a manifest can be filtered by day without date arithmetic.</summary>
+    /// <summary>
+    /// Date of the pour at the centre, so a manifest can be filtered by day without date
+    /// arithmetic. Bucketed on local time, as the cutoff and the gate reference are: on UTC, a
+    /// pour made before 05:30 local would be filed under the previous day.
+    /// </summary>
     public DateOnly PourDate { get; private set; }
 
     /// <summary>
@@ -125,12 +130,14 @@ public class TankPour
     /// <param name="consignment">The consignment being poured.</param>
     /// <param name="pouredBy">Intake officer identifier.</param>
     /// <param name="pouredAtUtc">Instant the pour was confirmed.</param>
+    /// <param name="pouredAtLocal">The same instant as wall-clock time at the centre.</param>
     public static TankPour Pour(
         Guid id,
         ChillingTank tank,
         Consignment consignment,
         string? pouredBy,
-        DateTimeOffset pouredAtUtc)
+        DateTimeOffset pouredAtUtc,
+        DateTime pouredAtLocal)
     {
         ArgumentNullException.ThrowIfNull(tank);
         ArgumentNullException.ThrowIfNull(consignment);
@@ -151,6 +158,6 @@ public class TankPour
                     : $"Consignment {consignment.Reference} was rejected at the gate and cannot be poured.");
         }
 
-        return new TankPour(id, tank.Id, consignment, pouredBy, pouredAtUtc);
+        return new TankPour(id, tank.Id, consignment, pouredBy, pouredAtUtc, pouredAtLocal);
     }
 }
