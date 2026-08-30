@@ -62,6 +62,12 @@ public sealed class DispatchSourceConfiguration : IEntityTypeConfiguration<Dispa
 
         builder.Property(source => source.QuantityLitres).HasPrecision(10, 2).IsRequired();
 
+        // The fill the draw came out of, so the note resolves to the load that actually left.
+        builder.Property(source => source.FillNumber).HasDefaultValue(1).IsRequired();
+
+        builder.HasIndex(source => new { source.TankId, source.FillNumber })
+            .HasDatabaseName("ix_dispatch_sources_tank_fill");
+
         // A tank appears at most once on a note; the per-tank quantities are what the total sums.
         builder.HasIndex(source => new { source.DispatchNoteId, source.TankId })
             .IsUnique()

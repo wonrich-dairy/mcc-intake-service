@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.QualityTests;
+﻿using MccIntakeService.Domain.QualityTests;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -143,8 +143,8 @@ public sealed class BatchTraceService : IBatchTraceService
 
         foreach (var source in note.Sources.OrderBy(source => source.Tank?.Code))
         {
-            tanks.Add(await TraceTankAsync(source.TankId, source.Tank?.Code, source.Tank?.Name,
-                source.QuantityLitres, cancellationToken));
+            tanks.Add(await TraceTankAsync(source.TankId, source.FillNumber, source.Tank?.Code,
+                source.Tank?.Name, source.QuantityLitres, cancellationToken));
         }
 
         if (tanks.Count == 0)
@@ -173,6 +173,7 @@ public sealed class BatchTraceService : IBatchTraceService
 
     private async Task<TracedTankView> TraceTankAsync(
         Guid tankId,
+        int fillNumber,
         string? code,
         string? name,
         decimal drawn,
@@ -185,9 +186,12 @@ public sealed class BatchTraceService : IBatchTraceService
             missing.Add("The tank this quantity was drawn from could not be resolved.");
         }
 
+        // Scoped to the fill the bowser actually drew from (SCRUM-8). Reading the whole tank
+        // would pull in every load it has held since, so a batch would trace back to societies
+        // whose milk was never in it — and their risk standing would be scored on it.
         var pours = await _dbContext.TankPours
             .AsNoTracking()
-            .Where(pour => pour.TankId == tankId)
+            .Where(pour => pour.TankId == tankId && pour.FillNumber == fillNumber)
             .Include(pour => pour.Consignment)!
                 .ThenInclude(consignment => consignment!.Society)
             .Include(pour => pour.Consignment)!
@@ -197,7 +201,7 @@ public sealed class BatchTraceService : IBatchTraceService
 
         if (pours.Count == 0)
         {
-            missing.Add("No pours are recorded against this tank.");
+            missing.Add("No pours are recorded against the load this tank was drawn from.");
         }
 
         var consignments = new List<TracedConsignmentView>();

@@ -48,23 +48,35 @@ public sealed class RecordDispatchNoteRequest
     [MinLength(1, ErrorMessage = "At least one source tank is required.")]
     public List<DispatchDrawRequest> Draws { get; set; } = [];
 
+    // AC5 requires the panel to be recorded, so every reading is required rather than defaulted.
+    // Bound as a non-nullable decimal, an omitted field would bind to 0, sit inside its own range
+    // and read back as a measurement nobody took — and 0 is a plausible-looking figure on three
+    // of these five. Nullable plus [Required] is what makes the omission a 400.
+
     /// <example>4.0</example>
+    [Required(ErrorMessage = "The fat reading is required.")]
     [Range(0, 15, ErrorMessage = "Fat must be between 0 and 15 percent.")]
-    public decimal FatPercent { get; set; }
+    public decimal? FatPercent { get; set; }
 
     /// <example>8.6</example>
+    [Required(ErrorMessage = "The SNF reading is required.")]
     [Range(0, 15, ErrorMessage = "SNF must be between 0 and 15.")]
-    public decimal Snf { get; set; }
+    public decimal? Snf { get; set; }
 
     /// <example>Blue</example>
-    public KqColour KqColour { get; set; }
+    [Required(ErrorMessage = "The KQ colour is required.")]
+    [EnumDataType(typeof(KqColour), ErrorMessage = "That is not a shade on the KQ card.")]
+    public KqColour? KqColour { get; set; }
 
     /// <example>Stable</example>
-    public StabilityGrade StabilityGrade { get; set; }
+    [Required(ErrorMessage = "The alcohol stability grade is required.")]
+    [EnumDataType(typeof(StabilityGrade), ErrorMessage = "That is not a grade on the stability scale.")]
+    public StabilityGrade? StabilityGrade { get; set; }
 
     /// <example>4.5</example>
+    [Required(ErrorMessage = "The dispatch temperature is required.")]
     [Range(0, 50, ErrorMessage = "The temperature must be between 0 and 50 °C.")]
-    public decimal TemperatureCelsius { get; set; }
+    public decimal? TemperatureCelsius { get; set; }
 
     /// <example>Loaded from T1 and T2 after the morning collection.</example>
     [StringLength(DispatchNote.MaxRemarksLength)]
@@ -75,11 +87,11 @@ public sealed class RecordDispatchNoteRequest
         BowserRegistration,
         DriverName,
         Draws.Select(draw => new DispatchDrawCommand(draw.TankCode, draw.QuantityLitres)).ToList(),
-        FatPercent,
-        Snf,
-        KqColour,
-        StabilityGrade,
-        TemperatureCelsius,
+        FatPercent!.Value,
+        Snf!.Value,
+        KqColour!.Value,
+        StabilityGrade!.Value,
+        TemperatureCelsius!.Value,
         Remarks,
         DispatchedAtLocal,
         dispatchedBy);
@@ -91,7 +103,8 @@ public sealed class RecordDispatchNoteRequest
 /// </summary>
 /// <remarks>
 /// A note is written once and read thereafter — it is the handover the factory works from.
-/// Submitting one closes every tank it drew from, so no further pours are accepted into them.
+/// Submitting one closes the fill of every tank it empties: no further pours join a load that has
+/// already left, and the tank goes on to hold the next one.
 /// </remarks>
 [ApiController]
 [Route("api/dispatch-notes")]
@@ -144,13 +157,13 @@ public class DispatchNotesController : ControllerBase
         return Ok(note);
     }
 
-    /// <summary>Records a dispatch note and closes the tanks it drew from.</summary>
+    /// <summary>Records a dispatch note, closing the fill of every tank it empties.</summary>
     /// <remarks>
     /// The total is calculated from the per-tank quantities, and a tank cannot give up more than
-    /// it holds. The note is read-only once submitted.
+    /// its current fill holds. The note is read-only once submitted.
     /// </remarks>
-    /// <response code="201">The note was recorded and its tanks closed.</response>
-    /// <response code="400">A quantity exceeds the tank's volume, or a tank is already closed.</response>
+    /// <response code="201">The note was recorded and the fills it emptied closed.</response>
+    /// <response code="400">A quantity exceeds what the tank holds, or the dispatch time is out of range.</response>
     /// <response code="404">One of the tank codes is not a known tank.</response>
     [HttpPost]
     [ProducesResponseType(typeof(DispatchNoteView), StatusCodes.Status201Created, "application/json")]

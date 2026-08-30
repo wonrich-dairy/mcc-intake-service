@@ -10,6 +10,15 @@ namespace MccIntakeService.Domain.Dispatch;
 public sealed record DispatchDraw(Guid TankId, decimal QuantityLitres);
 
 /// <summary>
+/// A source tank as it stands when the note is recorded: the load it is holding now, what that
+/// load still has in it, and when the first of it went in.
+/// </summary>
+/// <param name="Tank">The tank itself.</param>
+/// <param name="AvailableLitres">Litres its current fill still holds, after anything already drawn.</param>
+/// <param name="FilledFromLocal">Wall-clock time of the first pour of the current fill, if any.</param>
+public sealed record TankFill(ChillingTank Tank, decimal AvailableLitres, DateTime? FilledFromLocal);
+
+/// <summary>
 /// The quality panel taken as the bowser is loaded, so the factory receives a documented
 /// handover rather than an unqualified tanker (SCRUM-8).
 /// </summary>
@@ -125,7 +134,8 @@ public class DispatchNote
     public IReadOnlyCollection<DispatchSource> Sources => _sources.AsReadOnly();
 
     /// <summary>
-    /// Records a dispatch note and closes every tank it drew from, enforcing the rules in SCRUM-8.
+    /// Records a dispatch note and closes the fill of every tank it emptied, enforcing the rules
+    /// in SCRUM-8.
     /// </summary>
     /// <param name="id">Identity for the note.</param>
     /// <param name="reference">Reference issued for the dispatch date.</param>
@@ -134,8 +144,9 @@ public class DispatchNote
     /// <param name="dispatchedAtLocal">Wall-clock dispatch time.</param>
     /// <param name="panel">Quality panel taken at loading.</param>
     /// <param name="draws">Per-tank quantities drawn.</param>
-    /// <param name="tanks">The source tanks, with their currently available volume.</param>
+    /// <param name="tanks">The source tanks, with the volume their current fill still holds.</param>
     /// <param name="dispatchedBy">Identifier of the manager recording the note.</param>
+    /// <param name="nowLocal">Current wall-clock time at the centre.</param>
     /// <param name="recordedAtUtc">Instant the note was submitted.</param>
     public static DispatchNote Record(
         Guid id,
@@ -145,8 +156,9 @@ public class DispatchNote
         DateTime dispatchedAtLocal,
         DispatchPanel panel,
         IReadOnlyCollection<DispatchDraw> draws,
-        IReadOnlyDictionary<Guid, (ChillingTank Tank, decimal AvailableLitres)> tanks,
+        IReadOnlyDictionary<Guid, TankFill> tanks,
         string? dispatchedBy,
+        DateTime nowLocal,
         DateTimeOffset recordedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(panel);
@@ -161,6 +173,16 @@ public class DispatchNote
         if (draws.Count == 0)
         {
             throw new DomainValidationException("A dispatch note must draw from at least one tank.");
+        }
+
+        // The manager may correct the captured dispatch time, but only backwards: a bowser cannot
+        // leave in the future. Left unbounded, a mistyped year would issue its reference under
+        // that date on a record nothing can afterwards amend. The skew allowance matches the one
+        // the gate applies to arrival times.
+        if (dispatchedAtLocal > nowLocal.AddMinutes(1))
+        {
+            throw new DomainValidationException(
+                $"Dispatch time {dispatchedAtLocal:yyyy-MM-dd HH:mm} is in the future and cannot be recorded.");
         }
 
         var duplicates = draws
@@ -189,6 +211,15 @@ public class DispatchNote
                     $"The quantity drawn from tank {source.Tank.Code} must be greater than zero.");
             }
 
+            // The other end of the same bound: milk cannot leave before it arrived. A year typed
+            // as 2016 lands here rather than being filed under a date the tank was never filled on.
+            if (source.FilledFromLocal is { } filledFrom && dispatchedAtLocal < filledFrom)
+            {
+                throw new DomainValidationException(
+                    $"Tank {source.Tank.Code} was not filled until {filledFrom:yyyy-MM-dd HH:mm}, "
+                    + $"so it cannot have been dispatched at {dispatchedAtLocal:yyyy-MM-dd HH:mm}.");
+            }
+
             // A bowser cannot carry away more than the tank holds. Allowing it would put milk on
             // the dispatch note that never existed, and the factory would reconcile against it.
             if (draw.QuantityLitres > source.AvailableLitres)
@@ -198,13 +229,13 @@ public class DispatchNote
                     + $"so {draw.QuantityLitres} L cannot be drawn from it.");
             }
 
-            if (source.Tank.IsClosed)
-            {
-                throw new DomainValidationException(
-                    $"Tank {source.Tank.Code} has already been dispatched and is closed.");
-            }
-
-            sources.Add(new DispatchSource(Guid.NewGuid(), draw.TankId, draw.QuantityLitres));
+            // The fill is stamped on the source so the note goes on resolving to the load that
+            // actually left, however many times the tank is filled again afterwards.
+            sources.Add(new DispatchSource(
+                Guid.NewGuid(),
+                draw.TankId,
+                source.Tank.FillNumber,
+                draw.QuantityLitres));
         }
 
         var note = new DispatchNote(
@@ -218,12 +249,18 @@ public class DispatchNote
             dispatchedBy,
             recordedAtUtc);
 
-        // Closing the tanks is part of recording the note, not a separate step a caller could
-        // forget: once milk has left for the factory, pouring more in would corrupt the manifest
-        // the note resolves through.
+        // Closing is part of recording the note, not a separate step a caller could forget. It
+        // follows the tank being emptied rather than the note being submitted: a draw that leaves
+        // a balance behind has not finished the load, and sealing the tank there would strand the
+        // milk still in it.
         foreach (var draw in draws)
         {
-            tanks[draw.TankId].Tank.CloseForDispatch();
+            var source = tanks[draw.TankId];
+
+            if (source.AvailableLitres == draw.QuantityLitres)
+            {
+                source.Tank.CloseFill(recordedAtUtc);
+            }
         }
 
         return note;
@@ -266,10 +303,11 @@ public class DispatchSource
     {
     }
 
-    internal DispatchSource(Guid id, Guid tankId, decimal quantityLitres)
+    internal DispatchSource(Guid id, Guid tankId, int fillNumber, decimal quantityLitres)
     {
         Id = id;
         TankId = tankId;
+        FillNumber = fillNumber;
         QuantityLitres = decimal.Round(quantityLitres, 2, MidpointRounding.AwayFromZero);
     }
 
@@ -280,6 +318,9 @@ public class DispatchSource
     public Guid TankId { get; private set; }
 
     public ChillingTank? Tank { get; private set; }
+
+    /// <summary>The tank fill this draw came out of; the manifest resolves through it.</summary>
+    public int FillNumber { get; private set; }
 
     public decimal QuantityLitres { get; private set; }
 }
