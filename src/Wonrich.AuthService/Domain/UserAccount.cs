@@ -1,4 +1,4 @@
-using Wonrich.Auth.Authorization;
+﻿using Wonrich.Auth.Authorization;
 
 namespace Wonrich.AuthService.Domain;
 
@@ -50,7 +50,7 @@ public class UserAccount
     /// <summary>The PBKDF2 hash; never the password itself.</summary>
     public string PasswordHash { get; private set; }
 
-    /// <summary>The single role this user holds, from the configured seven (SCRUM-45).</summary>
+    /// <summary>The single role this user holds, from the configured six (SCRUM-45).</summary>
     public string Role { get; private set; }
 
     /// <summary>Chilling centre or factory the user operates at.</summary>
@@ -64,7 +64,18 @@ public class UserAccount
         IsActive && new PasswordHash(PasswordHash).Matches(password);
 
     /// <summary>Moves the account to a different configured role.</summary>
+    /// <remarks>A user holds exactly one role at a time, so this replaces rather than adds.</remarks>
     public void ChangeRole(string role) => Role = EnsureConfigured(role);
+
+    /// <summary>Corrects the display name. The username itself never moves.</summary>
+    public void Rename(string displayName) =>
+        DisplayName = Require(displayName, MaxDisplayNameLength, nameof(displayName));
+
+    /// <summary>Reassigns the account to a different facility, or to none.</summary>
+    public void MoveTo(string? facility) =>
+        Facility = string.IsNullOrWhiteSpace(facility)
+            ? null
+            : Require(facility, MaxFacilityLength, nameof(facility));
 
     /// <summary>Replaces the stored password.</summary>
     public void ChangePassword(string password) => PasswordHash = Domain.PasswordHash.From(password).Value;
@@ -83,7 +94,7 @@ public class UserAccount
         WonrichRoles.IsConfigured(role)
             ? role
             : throw new ArgumentException(
-                $"'{role}' is not one of the seven configured Wonrich roles.", nameof(role));
+                $"'{role}' is not one of the six configured Wonrich roles.", nameof(role));
 
     private static string Require(string value, int maxLength, string field)
     {

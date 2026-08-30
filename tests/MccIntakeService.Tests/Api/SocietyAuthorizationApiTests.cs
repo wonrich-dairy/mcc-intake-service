@@ -82,7 +82,6 @@ public class SocietyAuthorizationApiTests
 
     [Theory]
     [InlineData(WonrichRoles.QualityAnalyst)]
-    [InlineData(WonrichRoles.BowserOperator)]
     [InlineData(WonrichRoles.FactoryIntakeOfficer)]
     [InlineData(WonrichRoles.ProductionManager)]
     public async Task No_other_configured_role_may_maintain_societies(string role)
