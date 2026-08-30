@@ -14,7 +14,7 @@ public static class WonrichRoles
     /// <summary>Full access, including user administration.</summary>
     public const string SystemAdministrator = "SystemAdministrator";
 
-    /// <summary>Runs a chilling centre: maintains societies and oversees intake.</summary>
+    /// <summary>Runs a chilling centre: maintains societies, oversees intake, and signs milk out to the factory.</summary>
     public const string MccManager = "MccManager";
 
     /// <summary>Registers arriving consignments at the chilling centre gate.</summary>

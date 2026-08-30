@@ -3,6 +3,7 @@ using System;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MccIntakeService.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MccIntakeDbContext))]
-    partial class MccIntakeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260829055022_AddDispatchNotes")]
+    partial class AddDispatchNotes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -28,7 +31,7 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ArrivalAtLocal")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime>("ArrivalDate")
+                    b.Property<DateOnly>("ArrivalDate")
                         .HasColumnType("date");
 
                     b.Property<string>("Reference")
@@ -116,7 +119,7 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<DateTime>("DispatchDate")
+                    b.Property<DateOnly>("DispatchDate")
                         .HasColumnType("date");
 
                     b.Property<DateTime>("DispatchedAtLocal")
@@ -190,11 +193,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("DispatchNoteId")
                         .HasColumnType("char(36)");
 
-                    b.Property<int>("FillNumber")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
                     b.Property<decimal>("QuantityLitres")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
@@ -204,12 +202,11 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TankId");
+
                     b.HasIndex("DispatchNoteId", "TankId")
                         .IsUnique()
                         .HasDatabaseName("ux_dispatch_sources_note_tank");
-
-                    b.HasIndex("TankId", "FillNumber")
-                        .HasDatabaseName("ix_dispatch_sources_tank_fill");
 
                     b.ToTable("dispatch_sources", (string)null);
                 });
@@ -251,11 +248,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<bool>("ColourOk")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
                     b.Property<Guid>("ConsignmentId")
                         .HasColumnType("char(36)");
 
@@ -289,11 +281,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
-                    b.Property<bool>("SmellOk")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
                     b.Property<decimal>("Snf")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
@@ -302,11 +289,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("varchar(30)");
-
-                    b.Property<bool>("TasteOk")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
 
                     b.Property<decimal>("TemperatureCelsius")
                         .HasPrecision(5, 2)
@@ -434,18 +416,16 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
 
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("varchar(10)");
 
-                    b.Property<int>("FillNumber")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
-                    b.Property<DateTime?>("LastClosedAtUtc")
-                        .HasColumnType("datetime(6)");
+                    b.Property<bool>("IsClosed")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -466,7 +446,7 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                             Id = new Guid("9a1c2b30-0001-4d5e-8f60-000000000001"),
                             CapacityLitres = 5000m,
                             Code = "T1",
-                            FillNumber = 1,
+                            IsClosed = false,
                             Name = "Chilling Tank 1"
                         },
                         new
@@ -474,7 +454,7 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                             Id = new Guid("9a1c2b30-0002-4d5e-8f60-000000000002"),
                             CapacityLitres = 5000m,
                             Code = "T2",
-                            FillNumber = 1,
+                            IsClosed = false,
                             Name = "Chilling Tank 2"
                         },
                         new
@@ -482,7 +462,7 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                             Id = new Guid("9a1c2b30-0003-4d5e-8f60-000000000003"),
                             CapacityLitres = 3000m,
                             Code = "T3",
-                            FillNumber = 1,
+                            IsClosed = false,
                             Name = "Chilling Tank 3"
                         });
                 });
@@ -496,12 +476,7 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ConsignmentId")
                         .HasColumnType("char(36)");
 
-                    b.Property<int>("FillNumber")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
-                    b.Property<DateTime>("PourDate")
+                    b.Property<DateOnly>("PourDate")
                         .HasColumnType("date");
 
                     b.Property<DateTime>("PouredAtUtc")
@@ -527,9 +502,6 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                     b.HasIndex("ConsignmentId")
                         .IsUnique()
                         .HasDatabaseName("ux_tank_pours_consignment");
-
-                    b.HasIndex("TankId", "FillNumber")
-                        .HasDatabaseName("ix_tank_pours_tank_fill");
 
                     b.HasIndex("TankId", "PourDate")
                         .HasDatabaseName("ix_tank_pours_tank_date");

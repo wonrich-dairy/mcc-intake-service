@@ -148,6 +148,23 @@ public class Consignment
     }
 
     /// <summary>
+    /// Moves the consignment on from the gate verdict (SCRUM-7). Only a registered consignment
+    /// can be settled, which is what stops a second test overwriting the first.
+    /// </summary>
+    public void SettleGateVerdict(QualityTests.TestVerdict verdict)
+    {
+        if (Status != ConsignmentStatus.Registered)
+        {
+            throw new DomainValidationException(
+                $"Consignment {Reference} is already {Status} and cannot be settled again.");
+        }
+
+        Status = verdict == QualityTests.TestVerdict.Accept
+            ? ConsignmentStatus.Accepted
+            : ConsignmentStatus.Rejected;
+    }
+
+    /// <summary>
     /// Validates the arrival time on its own, so callers can reject a late consignment before
     /// spending a round trip generating its reference. <see cref="Register"/> re-runs this check.
     /// </summary>

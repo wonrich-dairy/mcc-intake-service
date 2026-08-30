@@ -29,7 +29,8 @@ dotnet dotnet-ef database update --project src\MccIntakeService
 
 dotnet run --project src\MccIntakeService
 ```
-Swagger UI is served at `/swagger` in every environment except Production.
+Swagger UI is served at `/swagger` in every environment except Production. Every route requires a
+token, so paste one from `POST /api/auth/login` into **Authorize** before trying an endpoint.
 
 Or bring the whole stack up in containers (SCRUM-39):
 ```powershell
@@ -57,6 +58,12 @@ excludes generated EF migrations from the coverage figure.
 | `Auth:SigningKey` | *(empty)* | Symmetric signing key, at least 32 characters. Supplied per environment; never committed. |
 | `Auth:AccessTokenMinutes` | `60` | Access token lifetime. |
 | `Auth:RefreshTokenDays` | `7` | Refresh token lifetime. |
+| `QualityThresholds:MinimumFatPercent` | `3.5` | Lowest acceptable fat percentage. |
+| `QualityThresholds:MinimumSnf` | `8.5` | Lowest acceptable solids-not-fat. |
+| `QualityThresholds:MinimumCorrectedClr` | `26.0` | Lowest acceptable corrected CLR. |
+| `QualityThresholds:MaximumWaterPercent` | `0.5` | Highest acceptable added water. |
+| `QualityThresholds:WorstAcceptableStability` | `MarginallyStable` | Weakest alcohol-cascade grade still accepted. |
+| `QualityThresholds:WorstAcceptableKqColour` | `Purple` | Furthest-reduced KQ shade still accepted. |
 
 ## API
 | Method | Route | Purpose |
@@ -64,6 +71,16 @@ excludes generated EF migrations from the coverage figure.
 | `POST` | `/api/consignments` | Register an arriving society consignment (SCRUM-6). |
 | `GET` | `/api/consignments/{reference}` | Fetch one consignment by its `MCC-YYYYMMDD-SOCIETY-NN` reference. |
 | `GET` | `/api/consignments` | List consignments filtered by society, date, date range or reference. |
+| `POST` | `/api/consignments/{reference}/quality-test/preview` | Derive CLR, SNF and TS and highlight breaches before submitting (SCRUM-7). |
+| `POST` | `/api/consignments/{reference}/quality-test` | Record the panel and settle the verdict. |
+| `GET` | `/api/consignments/{reference}/quality-test` | Read back the recorded panel. |
+| `GET` | `/api/tanks` | The three chilling tanks with their running totals (SCRUM-52). |
+| `GET` | `/api/tanks/pourable` | Consignments accepted at the gate and not yet poured. |
+| `POST` | `/api/tanks/{code}/pours` | Pour an accepted consignment into a tank. |
+| `GET` | `/api/tanks/{code}/manifest` | The tank's manifest; `date` filters the entries. |
+| `GET` | `/api/dispatch-notes` | Bowser dispatch notes; `date` filters by dispatch date (SCRUM-8). |
+| `GET` | `/api/dispatch-notes/{reference}` | One note, resolved to its contributing consignments. |
+| `POST` | `/api/dispatch-notes` | Record a note and close the fill of every tank it empties. |
 | `GET` | `/api/societies` | Societies for gate selection; `search`, `sortBy`, `descending`, `includeInactive` (SCRUM-51). |
 | `GET` | `/api/societies/{id}` | Fetch one society. |
 | `POST` | `/api/societies` | Register a supplying society (SCRUM-51). |
@@ -82,6 +99,83 @@ Domain rule failures return `application/problem+json` carrying a stable `code`:
 | `404` | A record addressed by the route does not exist. |
 | `409` | A society code is already in use; the body carries `conflictingCode`. |
 | `422` | A well-formed request referencing something absent, or intake closed for the day (`cutoff`, `arrivalTime`). |
+
+### Quality test panel
+`src/Wonrich.QualityPanel` holds the panel logic once (SCRUM-50) so the MCC gate and the lab
+cannot drift apart on what the same readings mean. It is a packable, versioned library consumed
+by reference, never copied.
+
+- **CLR correction** — the lactometer is calibrated at 27 °C, so a reading is corrected by
+  0.2 per °C: added above that temperature, subtracted below. SNF is always derived from the
+  *corrected* CLR.
+- **Composition** — `SNF = (FAT × 0.22) + (CLR × 0.25) + 0.72`, and `TS = SNF + FAT`.
+- **Alcohol cascade** — a state machine running 80% → 75% → 68% → clot-on-boiling, halting at the
+  first negative. A negative means no clotting, and since each rung is gentler than the last, the
+  remaining stages would pass too.
+- **KQ colour** — a fixed enumeration running best (`Blue`) to worst (`White`) across seven shades. The numeric values
+  are stored contract; new shades go on the end.
+
+Thresholds are configuration, not constants: they are a commercial and seasonal decision the
+centre retunes without a release. The formulae stay in code, because they are properties of milk.
+
+### Gate testing
+A consignment is tested once (SCRUM-7), and the record never changes afterwards: it is the
+evidence behind accepting or rejecting a delivery the society is paid for. `preview` evaluates
+readings without storing anything, so the officer sees the derived values and any breach before
+committing to a verdict; both paths share one evaluation, so the figures shown are the figures
+stored.
+
+A positive clot-on-boiling refuses acceptance outright rather than leaving it to judgement, and a
+rejection must name the failed parameter and its recorded value. Only the cascade stages actually
+run are stored — anything submitted past the first negative is discarded, because the cascade
+defines those as never having happened.
+
+### Chilling tanks
+Only a consignment accepted at the gate can be poured, and it goes into exactly one tank
+(SCRUM-52). `pourable` lists what is eligible, so rejected and untested milk is never offered.
+Pour time and officer identity are recorded with each entry.
+
+The three tanks are plant, not reference data — they ship with the schema and there is no endpoint
+to add or remove one. Quantities are copied onto the pour rather than read back through the
+consignment: a manifest records what physically went in, and must keep reading the same way even
+if the consignment's own figures are later restated. Filtering a manifest by date narrows the
+entries but never the tank totals, because what a tank holds does not change with how it is
+being looked at. A pour is filed under the centre's day, not UTC: between midnight and 05:30 the
+two disagree, and the officer's day is the one the rest of the centre runs on.
+
+A tank holds one **fill** at a time, and its totals are that fill rather than everything it has
+ever held. Totalling every pour would report milk that left on a bowser days ago as still there,
+and the manager selecting source tanks would find out at submission. `availableQuantityLitres` is
+what can still be drawn — the fill, less anything already dispatched off it. Manifest entries
+carry their `fillNumber`, so the load in the tank now is distinguishable from the ones that have
+already gone.
+
+### Bowser dispatch
+A dispatch note (SCRUM-8) records which tanks a bowser was loaded from, how much came from each,
+and the panel taken at loading. The reference is `DN-YYYYMMDD-NN`, issued per dispatch date.
+
+The total is summed from the per-tank quantities rather than supplied, and a tank cannot give up
+more than its current fill holds — poured into that fill, less anything already dispatched off it.
+Every panel reading is required: bound as a plain number an omitted one would be taken as `0`, and
+`kqColour` and `stabilityGrade` would default to the best reading on their scales, so a note with
+no panel at all would read back as a fully panelled, pristine load.
+
+Submitting a note **closes the fill** of every tank it empties, as part of recording the note
+rather than as a separate step a caller could forget. Closure is scoped to the load, not to the
+tank row: a tank that closed permanently would be usable exactly once, and the centre — which has
+three tanks and no route to add a fourth — would get three dispatch notes in the lifetime of the
+database. A draw that leaves a balance behind has not finished the load, so the fill stays open
+and the rest stays drawable rather than being stranded.
+
+`dispatchedAtLocal` is bounded at both ends. It cannot be in the future, on the same one-minute
+skew allowance the gate gives arrival times, and it cannot predate the first pour of the fill
+being drawn — milk cannot leave before it arrived. Unbounded, a mistyped year would issue the
+reference under that date on a record nothing can afterwards amend.
+
+Each source resolves to the consignments that contributed to it through the manifest of the fill
+it drew from, which is what lets the factory trace a failure back to a society. Reading the whole
+tank instead would fold in milk that arrived after the bowser had already gone. Notes are
+read-only once submitted.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are
@@ -114,8 +208,18 @@ changed once created for the same reason. There is deliberately no `DELETE`.
 
 Six roles are configured in `Wonrich.Auth/Authorization/WonrichRoles.cs`, and each user holds
 exactly one. `Api/Infrastructure/IntakeRoles.cs` holds only this service's mapping of roles to
-what they may do: `ManageSocieties` (`MccManager`, `SystemAdministrator`) and
-`RegisterConsignments` (those two plus `IntakeOfficer`). Guarded endpoints answer `401` when
+what they may do. `MccManager` and `SystemAdministrator` satisfy every policy; the rest are:
+
+| Policy | Also satisfied by |
+| --- | --- |
+| `ManageSocieties` | — |
+| `RegisterConsignments` | `IntakeOfficer` |
+| `RecordQualityTests` | `IntakeOfficer`, `QualityAnalyst` |
+| `PourToTanks` | `IntakeOfficer` |
+| `RecordDispatchNotes` | — |
+
+A bowser operator drives; signing milk out to the factory is the manager's record, which is why
+there is no operator role. Guarded endpoints answer `401` when
 unauthenticated and `403` when the role is wrong. Society reads stay open, because an intake
 officer has to list societies to pick one at the gate.
 
@@ -128,6 +232,21 @@ timestamp and the source address; never the password.
 dotnet dotnet-ef migrations add <Name> --project src\MccIntakeService --output-dir Infrastructure/Persistence/Migrations
 dotnet dotnet-ef migrations script --idempotent --project src\MccIntakeService --output schema.sql
 ```
+
+### Dates
+
+The MySQL provider is Oracle's `MySql.EntityFrameworkCore`, which writes a `DateOnly` but cannot read
+one back: `MySqlDataReader` has no `DateOnly` support, so loading any entity holding one threw
+`InvalidCastException`. `MccIntakeDbContext.ConfigureConventions` therefore stores every `DateOnly`
+through `DateOnlyToDateTimeConverter`, keeping the column `date`. A date added to a new entity is
+covered by that convention automatically.
+
+Pomelo materialises `DateOnly` natively, but its newest release (9.0.0) targets EF Core 9 while this
+solution is on EF Core 10, so adopting it would mean downgrading EF Core across every project.
+
+Because the suite runs on SQLite, which maps `DateOnly` happily, `DateOnlyMappingTests` builds the
+model against the MySQL provider — no server needed — so a provider-specific mapping fault fails CI
+rather than QA.
 
 
 ## Branching strategy
