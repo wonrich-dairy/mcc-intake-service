@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -175,7 +175,7 @@ public class SyncApiTests
     {
         using var factory = new IntakeApiFactory();
 
-        var response = await factory.CreateClientAs(WonrichRoles.BowserOperator)
+        var response = await factory.CreateClientAs(WonrichRoles.ProductionManager)
             .PostAsJsonAsync("/api/sync", new { operations = Array.Empty<object>() });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
