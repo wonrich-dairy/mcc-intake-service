@@ -64,6 +64,16 @@ public class DispatchServiceTests : IDisposable
         await new TankService(pouring, _clock).PourAsync(tankCode, reference, "officer-1");
     }
 
+    /// <summary>What the tank is holding now, read the way the manager's list reads it.</summary>
+    private async Task<decimal> HeldAsync(string tankCode)
+    {
+        await using var context = _database.CreateContext();
+
+        return (await new TankService(context, _clock).ListAsync())
+            .Single(tank => tank.Code == tankCode)
+            .AvailableQuantityLitres;
+    }
+
     private static RecordDispatchCommand Note(params DispatchDrawCommand[] draws) =>
         new("WP-CAB-1234", "Ranjith Fernando", draws, 4.0m, 8.6m,
             KqColour.Blue, StabilityGrade.Stable, 4.5m, "Morning load", null, "manager-1");
@@ -128,12 +138,7 @@ public class DispatchServiceTests : IDisposable
     {
         await PourAsync("T1", "KC");
 
-        decimal held;
-
-        await using (var reading = _database.CreateContext())
-        {
-            held = (await new TankService(reading, _clock).ManifestAsync("T1"))!.Tank.TotalQuantityLitres;
-        }
+        var held = await HeldAsync("T1");
 
         var service = CreateService(out var context);
         await using var _ = context;
@@ -144,7 +149,7 @@ public class DispatchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Submitting_a_note_closes_every_tank_it_drew_from()
+    public async Task Emptying_a_tank_closes_its_fill_and_opens_the_next()
     {
         await PourAsync("T1", "KC");
         await PourAsync("T2", "MT");
@@ -152,46 +157,165 @@ public class DispatchServiceTests : IDisposable
         await using var _ = context;
 
         await service.RecordAsync(Note(
-            new DispatchDrawCommand("T1", 50m),
-            new DispatchDrawCommand("T2", 50m)));
+            new DispatchDrawCommand("T1", await HeldAsync("T1")),
+            new DispatchDrawCommand("T2", await HeldAsync("T2"))));
 
         await using var verification = _database.CreateContext();
         var tanks = await verification.ChillingTanks.ToListAsync();
 
-        Assert.True(tanks.Single(tank => tank.Code == "T1").IsClosed);
-        Assert.True(tanks.Single(tank => tank.Code == "T2").IsClosed);
-        Assert.False(tanks.Single(tank => tank.Code == "T3").IsClosed);
+        Assert.Equal(2, tanks.Single(tank => tank.Code == "T1").FillNumber);
+        Assert.Equal(2, tanks.Single(tank => tank.Code == "T2").FillNumber);
+        Assert.NotNull(tanks.Single(tank => tank.Code == "T1").LastClosedAtUtc);
+
+        // A tank nobody drew from is still on its first fill.
+        Assert.Equal(1, tanks.Single(tank => tank.Code == "T3").FillNumber);
     }
 
     [Fact]
-    public async Task A_closed_tank_accepts_no_further_pours()
+    public async Task A_dispatched_tank_can_be_filled_and_dispatched_again()
     {
+        // The centre works this cycle every day. Closure that stuck to the tank row rather than
+        // to the load would give it three dispatch notes in the lifetime of the database.
         await PourAsync("T1", "KC");
         var service = CreateService(out var context);
         await using var _ = context;
 
-        await service.RecordAsync(Note(new DispatchDrawCommand("T1", 50m)));
+        await service.RecordAsync(Note(new DispatchDrawCommand("T1", await HeldAsync("T1"))));
 
-        // A second consignment cannot follow the bowser out of the door.
-        var exception = await Assert.ThrowsAsync<DomainValidationException>(
-            () => PourAsync("T1", "MT"));
-
-        Assert.Contains("closed", exception.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task A_closed_tank_cannot_be_dispatched_again()
-    {
-        await PourAsync("T1", "KC");
-        var service = CreateService(out var context);
-        await using var _ = context;
-
-        await service.RecordAsync(Note(new DispatchDrawCommand("T1", 50m)));
+        await PourAsync("T1", "MT");
 
         await using var second = _database.CreateContext();
-        await Assert.ThrowsAsync<DomainValidationException>(
+        var next = await new DispatchService(second, _clock)
+            .RecordAsync(Note(new DispatchDrawCommand("T1", await HeldAsync("T1"))));
+
+        Assert.Equal("DN-20260823-02", next.Reference);
+    }
+
+    [Fact]
+    public async Task An_emptied_tank_has_nothing_left_for_the_next_bowser()
+    {
+        await PourAsync("T1", "KC");
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        await service.RecordAsync(Note(new DispatchDrawCommand("T1", await HeldAsync("T1"))));
+
+        await using var second = _database.CreateContext();
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
             () => new DispatchService(second, _clock)
                 .RecordAsync(Note(new DispatchDrawCommand("T1", 10m))));
+
+        Assert.Contains("holds 0", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Milk_poured_in_after_the_bowser_left_stays_off_the_issued_note()
+    {
+        await PourAsync("T1", "KC");
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        var recorded = await service.RecordAsync(
+            Note(new DispatchDrawCommand("T1", await HeldAsync("T1"))));
+
+        // The next load starts filling the same tank. The note the factory is already working
+        // from has to keep reading exactly as it did when it was issued.
+        await PourAsync("T1", "MT");
+
+        await using var reader = _database.CreateContext();
+        var note = await new DispatchService(reader, _clock).GetAsync(recorded.Reference);
+
+        var source = Assert.Single(note!.Sources);
+        Assert.Single(source.ContributingConsignments);
+    }
+
+    [Fact]
+    public async Task A_partial_draw_leaves_the_balance_in_the_tank()
+    {
+        await PourAsync("T1", "KC");
+        var held = await HeldAsync("T1");
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        await service.RecordAsync(Note(new DispatchDrawCommand("T1", 100m)));
+
+        // The fill is not finished, so the tank is not closed and the rest is still drawable.
+        await using (var verification = _database.CreateContext())
+        {
+            Assert.Equal(1, (await verification.ChillingTanks.SingleAsync(tank => tank.Code == "T1")).FillNumber);
+        }
+
+        await using var second = _database.CreateContext();
+        var next = await new DispatchService(second, _clock)
+            .RecordAsync(Note(new DispatchDrawCommand("T1", held - 100m)));
+
+        Assert.Equal(held - 100m, next.TotalQuantityLitres);
+    }
+
+    [Fact]
+    public async Task A_dispatch_time_in_the_future_is_rejected()
+    {
+        await PourAsync("T1", "KC");
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.RecordAsync(Note(new DispatchDrawCommand("T1", 50m))
+                with { DispatchedAtLocal = _clock.LocalNow.AddYears(4) }));
+
+        Assert.Contains("future", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task A_dispatch_cannot_predate_the_milk_it_carries()
+    {
+        await PourAsync("T1", "KC");
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.RecordAsync(Note(new DispatchDrawCommand("T1", 50m))
+                with { DispatchedAtLocal = _clock.LocalNow.AddYears(-10) }));
+
+        Assert.Contains("was not filled until", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task The_tank_list_reports_the_load_the_tank_is_holding_now()
+    {
+        await PourAsync("T1", "KC");
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        await service.RecordAsync(Note(new DispatchDrawCommand("T1", await HeldAsync("T1"))));
+
+        await using var reading = _database.CreateContext();
+        var tank = (await new TankService(reading, _clock).ListAsync()).Single(view => view.Code == "T1");
+
+        // AC2 has the manager selecting from this list. Reporting milk that has already gone
+        // would send them to a 400 at submission.
+        Assert.Equal(0m, tank.TotalQuantityLitres);
+        Assert.Equal(0m, tank.AvailableQuantityLitres);
+        Assert.Equal(0, tank.ConsignmentCount);
+        Assert.Equal(2, tank.FillNumber);
+        Assert.NotNull(tank.LastClosedAtUtc);
+    }
+
+    [Fact]
+    public async Task The_tank_list_shows_what_a_partial_draw_left_behind()
+    {
+        await PourAsync("T1", "KC");
+        var held = await HeldAsync("T1");
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        await service.RecordAsync(Note(new DispatchDrawCommand("T1", 100m)));
+
+        await using var reading = _database.CreateContext();
+        var tank = (await new TankService(reading, _clock).ListAsync()).Single(view => view.Code == "T1");
+
+        Assert.Equal(held, tank.TotalQuantityLitres);
+        Assert.Equal(held - 100m, tank.AvailableQuantityLitres);
     }
 
     [Fact]

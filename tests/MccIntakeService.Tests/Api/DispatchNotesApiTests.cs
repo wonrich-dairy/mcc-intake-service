@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MccIntakeService.Application.Consignments;
+using MccIntakeService.Application.Dispatch;
 using MccIntakeService.Application.Societies;
+using MccIntakeService.Application.Tanks;
 using MccIntakeService.Tests.Support;
 using Wonrich.Auth.Authorization;
 
@@ -61,6 +63,14 @@ public class DispatchNotesApiTests
         remarks = "Morning load"
     };
 
+    /// <summary>What a tank is holding now, read from the list the manager selects from.</summary>
+    private static async Task<decimal> HeldAsync(HttpClient client, string tankCode)
+    {
+        var tanks = await client.GetFromJsonAsync<List<TankView>>("/api/tanks", JsonOptions);
+
+        return tanks!.Single(tank => tank.Code == tankCode).AvailableQuantityLitres;
+    }
+
     [Fact]
     public async Task Recording_a_note_returns_201_and_it_is_then_fetchable()
     {
@@ -117,38 +127,95 @@ public class DispatchNotesApiTests
     }
 
     [Fact]
-    public async Task Submitting_a_note_closes_the_tank_to_further_pours()
+    public async Task A_dispatched_tank_goes_on_to_take_the_next_load()
+    {
+        using var factory = new IntakeApiFactory();
+        var officer = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        await PourAsync(officer, "T1", 0);
+
+        var held = await HeldAsync(officer, "T1");
+
+        var manager = factory.CreateClientAs(WonrichRoles.MccManager);
+        var first = await manager.PostAsJsonAsync("/api/dispatch-notes", Note(("T1", held)));
+        first.EnsureSuccessStatusCode();
+        var reference = (await first.Content.ReadFromJsonAsync<DispatchNoteView>(JsonOptions))!.Reference;
+
+        // The bowser has gone and the tank starts filling again. Closure is scoped to the load,
+        // so the tank is not spent: this is the cycle the centre runs every day.
+        await PourAsync(officer, "T1", 1);
+
+        var tank = (await officer.GetFromJsonAsync<List<TankView>>("/api/tanks", JsonOptions))!
+            .Single(view => view.Code == "T1");
+
+        Assert.Equal(2, tank.FillNumber);
+        Assert.True(tank.AvailableQuantityLitres > 0);
+
+        var second = await manager.PostAsJsonAsync(
+            "/api/dispatch-notes",
+            Note(("T1", tank.AvailableQuantityLitres)));
+
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+
+        // And the note already handed to the factory still reads as it did when it was issued.
+        var issued = await manager.GetFromJsonAsync<DispatchNoteView>(
+            $"/api/dispatch-notes/{reference}", JsonOptions);
+
+        Assert.Single(issued!.Sources.Single().ContributingConsignments);
+    }
+
+    [Fact]
+    public async Task A_note_that_omits_a_panel_reading_returns_400()
     {
         using var factory = new IntakeApiFactory();
         var officer = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         await PourAsync(officer, "T1", 0);
 
         var manager = factory.CreateClientAs(WonrichRoles.MccManager);
-        (await manager.PostAsJsonAsync("/api/dispatch-notes", Note(("T1", 100m)))).EnsureSuccessStatusCode();
 
-        // Register and accept another consignment, then try to pour it into the closed tank.
-        var societies = await officer.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
-        var registered = await officer.PostAsJsonAsync("/api/consignments", new
+        // AC5 requires the panel. Omitted, these used to bind to 0 and to the best reading on
+        // each scale, and the load read back as fully panelled and pristine.
+        var response = await manager.PostAsJsonAsync("/api/dispatch-notes", new
         {
-            societyId = societies![1].Id,
-            cans = new[] { new { canNumber = 1, quantityKg = 41.2m } }
+            bowserRegistration = "WP-CAB-1234",
+            driverName = "Ranjith Fernando",
+            draws = new[] { new { tankCode = "T1", quantityLitres = 100m } }
         });
-        var reference = (await registered.Content.ReadFromJsonAsync<ConsignmentView>(JsonOptions))!.Reference;
 
-        await officer.PostAsJsonAsync($"/api/consignments/{reference}/quality-test", new
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadAsStringAsync();
+
+        Assert.Contains("fat", problem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("snf", problem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("temperature", problem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("KQ", problem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("stability", problem, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task A_dispatch_time_in_the_future_returns_400()
+    {
+        using var factory = new IntakeApiFactory();
+        var officer = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        await PourAsync(officer, "T1", 0);
+
+        var manager = factory.CreateClientAs(WonrichRoles.MccManager);
+
+        var response = await manager.PostAsJsonAsync("/api/dispatch-notes", new
         {
-            fatPercent = 4.1m,
-            rawLactometerReading = 28.5m,
-            temperatureCelsius = 29.0m,
-            waterPercent = 0m,
+            bowserRegistration = "WP-CAB-1234",
+            driverName = "Ranjith Fernando",
+            dispatchedAtLocal = "2030-01-01T08:00:00",
+            draws = new[] { new { tankCode = "T1", quantityLitres = 100m } },
+            fatPercent = 4.0m,
+            snf = 8.6m,
             kqColour = "Blue",
-            alcoholOutcomes = new Dictionary<string, string> { ["Alcohol80"] = "Negative" },
-            verdict = "Accept"
+            stabilityGrade = "Stable",
+            temperatureCelsius = 4.5m
         });
 
-        var pour = await officer.PostAsJsonAsync("/api/tanks/T1/pours", new { consignmentReference = reference });
-
-        Assert.Equal(HttpStatusCode.BadRequest, pour.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
     [Fact]
