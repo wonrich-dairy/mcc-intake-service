@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -82,6 +82,27 @@ public class FactoryIntakeApiTests
             temperaturePassed = temperature,
             temperatureCelsius = 4.8m
         };
+
+    [Fact]
+    public async Task An_arrival_in_the_future_returns_400()
+    {
+        using var factory = new IntakeApiFactory();
+        var note = await DispatchNoteAsync(factory);
+        var client = factory.CreateClientAs(WonrichRoles.FactoryIntakeOfficer);
+
+        var response = await client.PostAsJsonAsync("/api/factory/arrivals", new
+        {
+            dispatchNoteReference = note,
+            smellPassed = true,
+            colourPassed = true,
+            temperaturePassed = true,
+            temperatureCelsius = 4.8m,
+            arrivedAtLocal = "2030-01-01T08:00:00"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
 
     [Fact]
     public async Task A_clean_screening_returns_201_with_the_new_batch()
