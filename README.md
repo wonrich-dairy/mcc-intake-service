@@ -230,7 +230,16 @@ send the queue again; the server is the side that has to remember. A replayed re
 
 Each record is reported separately, so **one bad record never sinks the queue behind it**: the
 failure is returned with a reason and nothing is remembered for it, leaving the client free to
-retry once the cause is fixed. References are always issued by the server, exactly as they are
+retry once the cause is fixed. Each is applied inside its own transaction, so a record either
+lands with the row that acknowledges it or leaves nothing at all — the services below commit as
+they go, and a half-applied record the client is told nothing about would be uploaded again. A
+store failure counts as a record failure for the same reason: a 500 tells the client nothing about
+which of its queue landed.
+
+A queued record must carry the time it was captured. The server cannot supply it, because the
+moment of upload is not when the milk arrived: dated on arrival at the server, milk taken in at
+09:00 and synced at 18:00 would be refused against the SCRUM-6 cutoff — intake blocked by network
+conditions, which is the outcome this story exists to rule out. References are always issued by the server, exactly as they are
 online, so a record captured offline cannot collide with one already handed out.
 
 > The client half of SCRUM-10 — local storage, the pending indicator, the queue count and

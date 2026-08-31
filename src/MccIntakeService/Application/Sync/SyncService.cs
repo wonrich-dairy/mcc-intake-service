@@ -165,6 +165,12 @@ public sealed class SyncService : ISyncService
             return new SyncResult(clientRecordId, SyncStatus.Duplicate, existing.ResultReference, null);
         }
 
+        // The applied record and the synced_records row that acknowledges it have to land
+        // together. The services below commit as they go, so without this a failure after one of
+        // them had already saved would leave the record in the database with nothing marking it
+        // as taken - and the client, told only that it failed, would upload it again.
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
             var reference = operation.Kind switch
@@ -187,13 +193,24 @@ public sealed class SyncService : ISyncService
                 DateTimeOffset.UtcNow));
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return new SyncResult(clientRecordId, SyncStatus.Applied, reference, null);
         }
-        catch (Exception exception) when (exception is DomainException or ArgumentException)
+        catch (Exception exception) when (
+            exception is DomainException or ArgumentException or DbUpdateException)
         {
             // One bad record must not sink the queue behind it. It is reported and the client
-            // keeps it for manual review; everything else in the upload still lands.
+            // keeps it for manual review; everything else in the upload still lands. A store
+            // failure counts: a unique index the domain has no check for would otherwise leave
+            // the caller with a 500 and no account of which records landed.
+            await transaction.RollbackAsync(cancellationToken);
+
+            // The rollback undoes the database, not the change tracker. Anything the failed
+            // operation added is still tracked, and the next SaveChanges in this batch would
+            // commit it as a side effect of an unrelated record succeeding.
+            _dbContext.ChangeTracker.Clear();
+
             return new SyncResult(clientRecordId, SyncStatus.Failed, null, exception.Message);
         }
     }
@@ -205,6 +222,16 @@ public sealed class SyncService : ISyncService
     {
         var payload = operation.Consignment
             ?? throw new DomainValidationException("A consignment record carries no consignment details.");
+
+        // A queued record has to carry the time it was taken. Falling back to the clock would
+        // date it at the moment of upload, and SCRUM-6's cutoff would then reject milk taken in
+        // at 09:00 because the officer only found coverage at 18:00 - which is precisely the
+        // officer this story is written for.
+        if (payload.ArrivalAtLocal is null)
+        {
+            throw new DomainValidationException(
+                "A consignment captured offline must record the arrival time it was taken at.");
+        }
 
         // The reference is issued here, by the server, exactly as it is for an online
         // registration. The client never invents one, so an offline record cannot collide with a

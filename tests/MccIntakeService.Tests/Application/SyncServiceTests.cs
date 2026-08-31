@@ -41,12 +41,16 @@ public class SyncServiceTests : IDisposable
             new TankService(context, _clock));
     }
 
-    private SyncOperation Registration(string clientId, int sequence, string societyCode = "KC") =>
+    private SyncOperation Registration(
+        string clientId,
+        int sequence,
+        string societyCode = "KC",
+        DateTime? capturedAt = null) =>
         new(clientId, sequence, SyncOperationKind.RegisterConsignment,
             new SyncConsignmentPayload(
                 _database.Society(societyCode).Id,
                 [new CanEntryPayload(1, 41.2m)],
-                null));
+                capturedAt ?? _clock.LocalNow));
 
     private static SyncOperation Panel(string clientId, int sequence, string consignmentReference) =>
         new(clientId, sequence, SyncOperationKind.RecordQualityTest, null,
@@ -58,6 +62,76 @@ public class SyncServiceTests : IDisposable
     private static SyncOperation Pour(string clientId, int sequence, string consignmentReference) =>
         new(clientId, sequence, SyncOperationKind.PourToTank, null, null,
             new SyncPourPayload("T1", consignmentReference));
+
+    [Fact]
+    public async Task A_record_captured_before_the_cutoff_applies_however_late_it_is_uploaded()
+    {
+        // The morning's intake, uploaded once the officer found coverage in the evening. Judging
+        // it by the moment of upload would reject it against the 16:00 cutoff - intake blocked by
+        // network conditions, which is the outcome the story rules out.
+        var capturedAt = new DateTime(2026, 8, 23, 9, 0, 0);
+        _clock.LocalNow = new DateTime(2026, 8, 23, 18, 0, 0);
+
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        var result = await service.UploadAsync(
+            [Registration("client-1", 1, capturedAt: capturedAt)], "officer-1");
+
+        var applied = Assert.Single(result.Results);
+
+        Assert.Equal(SyncStatus.Applied, applied.Status);
+
+        await using var check = _database.CreateContext();
+        var consignment = await check.Consignments.SingleAsync();
+
+        Assert.Equal(capturedAt, consignment.ArrivalAtLocal);
+    }
+
+    [Fact]
+    public async Task A_record_that_does_not_say_when_it_was_taken_fails_rather_than_being_dated_on_upload()
+    {
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        var operation = new SyncOperation(
+            "client-1", 1, SyncOperationKind.RegisterConsignment,
+            new SyncConsignmentPayload(_database.Society("KC").Id, [new CanEntryPayload(1, 41.2m)], null));
+
+        var result = await service.UploadAsync([operation], "officer-1");
+
+        var failed = Assert.Single(result.Results);
+
+        Assert.Equal(SyncStatus.Failed, failed.Status);
+        Assert.Contains("arrival time", failed.Error!, StringComparison.OrdinalIgnoreCase);
+
+        // And nothing was written for it: a record the server cannot date is not half-applied.
+        await using var check = _database.CreateContext();
+        Assert.Equal(0, await check.Consignments.CountAsync());
+        Assert.Equal(0, await check.SyncedRecords.CountAsync());
+    }
+
+    [Fact]
+    public async Task A_failed_record_leaves_nothing_behind_for_the_next_one_to_commit()
+    {
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        var bad = new SyncOperation(
+            "client-1", 1, SyncOperationKind.RegisterConsignment,
+            new SyncConsignmentPayload(_database.Society("KC").Id, [new CanEntryPayload(1, 41.2m)], null));
+
+        var result = await service.UploadAsync([bad, Registration("client-2", 2)], "officer-1");
+
+        Assert.Equal(1, result.Failed);
+        Assert.Equal(1, result.Applied);
+
+        // Exactly one consignment: the failed operation's work must not ride into the database on
+        // the back of the one that followed it.
+        await using var check = _database.CreateContext();
+        Assert.Equal(1, await check.Consignments.CountAsync());
+        Assert.Equal(1, await check.SyncedRecords.CountAsync());
+    }
 
     [Fact]
     public async Task A_queued_registration_is_applied_and_given_a_server_reference()

@@ -31,9 +31,59 @@ public class SyncApiTests
         consignment = new
         {
             societyId,
-            cans = new[] { new { canNumber = 1, quantityKg = 41.2m } }
+            cans = new[] { new { canNumber = 1, quantityKg = 41.2m } },
+            arrivalAtLocal = "2026-08-23T07:30:00"
         }
     };
+
+    [Fact]
+    public async Task A_morning_queue_uploaded_in_the_evening_still_applies()
+    {
+        using var factory = new IntakeApiFactory();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        var society = await SocietyIdAsync(client);
+
+        // Coverage came back long after the 16:00 cutoff. The record is judged on when the milk
+        // was taken in, not on when the officer managed to upload it.
+        factory.Clock.LocalNow = new DateTime(2026, 8, 23, 18, 0, 0);
+
+        var response = await client.PostAsJsonAsync("/api/sync", new
+        {
+            operations = new[] { Registration("client-1", 1, society) }
+        });
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(1, result.GetProperty("applied").GetInt32());
+    }
+
+    [Fact]
+    public async Task A_queued_record_without_a_capture_time_is_refused()
+    {
+        using var factory = new IntakeApiFactory();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        var society = await SocietyIdAsync(client);
+
+        var response = await client.PostAsJsonAsync("/api/sync", new
+        {
+            operations = new[]
+            {
+                new
+                {
+                    clientRecordId = "client-1",
+                    sequence = 1,
+                    kind = "RegisterConsignment",
+                    consignment = new
+                    {
+                        societyId = society,
+                        cans = new[] { new { canNumber = 1, quantityKg = 41.2m } }
+                    }
+                }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 
     [Fact]
     public async Task A_queue_uploads_and_reports_each_record()

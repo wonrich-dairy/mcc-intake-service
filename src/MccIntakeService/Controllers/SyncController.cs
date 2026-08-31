@@ -33,7 +33,11 @@ public sealed class SyncConsignmentRequest
     [MinLength(1, ErrorMessage = "At least one can must be recorded.")]
     public List<SyncCanRequest> Cans { get; set; } = [];
 
-    /// <summary>Arrival time captured on the device while offline.</summary>
+    /// <summary>
+    /// Arrival time captured on the device while offline. Required: the server cannot supply it,
+    /// because the moment of upload is not when the milk arrived.
+    /// </summary>
+    [Required(ErrorMessage = "The arrival time captured on the device is required.")]
     public DateTime? ArrivalAtLocal { get; set; }
 }
 
@@ -211,6 +215,6 @@ public class SyncController : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await _sync.UploadAsync(
             request.ToOperations(),
-            User.UserId() ?? User.UserName(),
+            User.OfficerIdentity(),
             cancellationToken));
 }
