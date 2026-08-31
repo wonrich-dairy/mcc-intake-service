@@ -190,6 +190,11 @@ reference is only spent when the screening passes, so a rejected arrival leaves 
 day's sequence. A dispatch note is screened once, pass or fail: screening it again would leave two
 answers about the same bowser.
 
+`arrivedAtLocal` is bounded the way `dispatchedAtLocal` is, and for the same reason — it dates the
+batch reference. It cannot be in the future, on the gate's one-minute skew allowance, and it
+cannot precede the dispatch time on the note: a bowser cannot arrive before it left. The bound is
+checked before the reference is issued, so an impossible arrival time never burns a batch number.
+
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are
 derived from that weight using `Intake:MilkDensityKgPerLitre` and returned alongside it; they are

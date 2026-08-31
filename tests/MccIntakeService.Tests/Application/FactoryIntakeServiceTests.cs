@@ -99,6 +99,62 @@ public class FactoryIntakeServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task An_arrival_in_the_future_is_rejected()
+    {
+        var note = await DispatchNoteAsync();
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.ScreenAsync(Screening(note) with
+            {
+                ArrivedAtLocal = _clock.LocalNow.AddYears(4)
+            }));
+
+        Assert.Contains("future", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task An_arrival_before_the_bowser_was_dispatched_is_rejected()
+    {
+        var note = await DispatchNoteAsync();
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.ScreenAsync(Screening(note) with
+            {
+                ArrivedAtLocal = _clock.LocalNow.AddHours(-1)
+            }));
+
+        Assert.Contains("before the bowser was dispatched", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task An_impossible_arrival_time_does_not_burn_a_batch_reference()
+    {
+        var note = await DispatchNoteAsync();
+
+        await using (var rejecting = _database.CreateContext())
+        {
+            await Assert.ThrowsAsync<DomainValidationException>(
+                () => new FactoryIntakeService(rejecting, _clock).ScreenAsync(Screening(note) with
+                {
+                    ArrivedAtLocal = _clock.LocalNow.AddYears(4)
+                }));
+        }
+
+        var service = CreateService(out var context);
+        await using var _ = context;
+
+        // The first batch number of the day is still on the shelf: a rejected arrival must not
+        // leave a gap in the sequence, exactly as a failed screening does not.
+        var screening = await service.ScreenAsync(Screening(note));
+
+        Assert.Equal("WR-20260823-01", screening.Batch!.Reference);
+    }
+
+    [Fact]
     public async Task The_batch_stores_the_arrival_time_screening_and_officer()
     {
         var note = await DispatchNoteAsync();
