@@ -2,13 +2,16 @@
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Application.Consignments;
+using MccIntakeService.Application.QualityTests;
 using MccIntakeService.Application.Societies;
+using MccIntakeService.Application.Tanks;
 using MccIntakeService.Configuration;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Wonrich.Auth;
 using Wonrich.Auth.Authorization;
+using Wonrich.QualityPanel;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +48,8 @@ builder.Services.AddDbContext<MccIntakeDbContext>(options => options.UseMySQL(co
 builder.Services.AddScoped<IConsignmentReferenceGenerator, ConsignmentReferenceGenerator>();
 builder.Services.AddScoped<IConsignmentService, ConsignmentService>();
 builder.Services.AddScoped<ISocietyService, SocietyService>();
+builder.Services.AddScoped<IQualityTestService, QualityTestService>();
+builder.Services.AddScoped<ITankService, TankService>();
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddSingleton<IIntakeClock, IntakeClock>();
 
@@ -67,7 +72,22 @@ builder.Services.AddWonrichAuthorization(policies => policies
         IntakePolicies.RegisterConsignments,
         WonrichRoles.SystemAdministrator,
         WonrichRoles.MccManager,
+        WonrichRoles.IntakeOfficer)
+    .Add(
+        IntakePolicies.RecordQualityTests,
+        WonrichRoles.SystemAdministrator,
+        WonrichRoles.MccManager,
+        WonrichRoles.IntakeOfficer,
+        WonrichRoles.QualityAnalyst)
+    .Add(
+        IntakePolicies.PourToTanks,
+        WonrichRoles.SystemAdministrator,
+        WonrichRoles.MccManager,
         WonrichRoles.IntakeOfficer));
+
+// Quality test panel (SCRUM-50). Consumed from the shared library rather than reimplemented,
+// so the gate and the lab cannot reach different verdicts on the same readings.
+builder.Services.AddQualityPanel(builder.Configuration);
 
 // Swagger / OpenAPI — Swashbuckle (SCRUM-49)
 builder.Services.AddEndpointsApiExplorer();
@@ -78,6 +98,23 @@ builder.Services.AddSwaggerGen(options =>
         Title = "MCC & Intake Service API",
         Version = "v1",
         Description = "Raw milk quality metrics, bowser dispatch notes, and factory-intake condition logging for Wonrich Dairy."
+    });
+
+    // Every route on this service is [Authorize], and Swagger UI cannot send a token without a
+    // declared scheme, so the endpoints were documented but not exercisable from the page.
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Access token from POST /api/auth/login on the auth service. Paste the token only."
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
 
     // Pick up XML documentation comments

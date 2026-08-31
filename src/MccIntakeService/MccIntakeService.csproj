@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Wonrich.Auth\Wonrich.Auth.csproj" />
+    <ProjectReference Include="..\Wonrich.QualityPanel\Wonrich.QualityPanel.csproj" />
   </ItemGroup>
 
 </Project>

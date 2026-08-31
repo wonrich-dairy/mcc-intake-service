@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.Common;
+﻿using MccIntakeService.Domain.Common;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -78,6 +78,9 @@ public sealed class DomainExceptionHandler : IExceptionHandler
 
         // A code the caller chose collides with one already in use.
         DuplicateCodeException => (StatusCodes.Status409Conflict, "Code already in use"),
+
+        // The milk is already in a tank: a conflict with what has been recorded, not bad input.
+        ConsignmentAlreadyPouredException => (StatusCodes.Status409Conflict, "Consignment already poured"),
 
         // Something the request body points at does not exist. A resource addressed by the route
         // instead answers 404, which the controllers handle themselves.
