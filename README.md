@@ -208,6 +208,13 @@ gate by the narrowest room. Measures sit on different scales (percentages, lacto
 positions on a colour card), so each is converted to a fraction of its own scale and the tightest
 becomes the score. It is a triage aid, not a verdict: everything ranked here already passed.
 
+Every threshold the panel rejects on is scored, added water included. It is the one measure judged
+from above rather than below, so its room is the distance down from the ceiling; left out, a
+consignment sitting just under the adulteration limit ranked as though it were clean.
+
+Officer fields carry the sign-in name rather than the subject id. The point of naming the officer
+is that someone can go and ask them what they saw.
+
 Anything that cannot be resolved upstream is listed explicitly under `missing` rather than left
 blank, so a gap never reads as a clean result. A society with no gate results ranks *last*, not
 first — unknown is not the same as safe, and the missing entries are what flag it.

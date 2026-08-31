@@ -96,7 +96,7 @@ public class FactoryIntakeController : ControllerBase
         try
         {
             var screening = await _factory.ScreenAsync(
-                request.ToCommand(User.UserId() ?? User.UserName()),
+                request.ToCommand(User.OfficerIdentity()),
                 cancellationToken);
 
             return screening.Batch is null

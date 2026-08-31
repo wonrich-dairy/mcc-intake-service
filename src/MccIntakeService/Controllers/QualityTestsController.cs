@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.QualityTests;
@@ -67,7 +67,7 @@ public class QualityTestsController : ControllerBase
         [FromBody] RecordQualityTestRequest request,
         CancellationToken cancellationToken)
     {
-        var command = request.ToCommand(request.Verdict, User.UserId() ?? User.UserName());
+        var command = request.ToCommand(request.Verdict, User.OfficerIdentity());
 
         try
         {

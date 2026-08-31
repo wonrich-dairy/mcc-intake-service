@@ -1,4 +1,4 @@
-using MccIntakeService.Api.Contracts;
+﻿using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Traceability;
 using Microsoft.AspNetCore.Authorization;
@@ -60,10 +60,11 @@ public class BatchTraceController : ControllerBase
 
         if (trace is null)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Batch not found",
-                detail: $"No batch carries the reference '{reference}'.");
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                "entity_not_found",
+                "Batch not found",
+                $"No batch carries the reference '{reference}'.");
         }
 
         return Ok(trace);

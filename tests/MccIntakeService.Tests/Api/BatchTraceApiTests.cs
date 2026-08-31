@@ -152,6 +152,33 @@ public class BatchTraceApiTests
 
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Contains("WR-20260823-99", problem.GetProperty("detail").GetString()!, StringComparison.Ordinal);
+
+        // The route publishes IntakeProblemDetails for this status, so the body has to carry the
+        // code and type URI the rest of the service's 404s carry.
+        Assert.Equal("entity_not_found", problem.GetProperty("code").GetString());
+        Assert.Contains("wonrich.dev", problem.GetProperty("type").GetString()!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_trace_names_the_officers_rather_than_their_ids()
+    {
+        using var factory = new IntakeApiFactory();
+        var batch = await BatchAsync(factory, ("T1", 0));
+        var qco = factory.CreateClientAs(WonrichRoles.QualityAnalyst);
+
+        var trace = await qco.GetFromJsonAsync<JsonElement>(
+            $"/api/factory/batches/{batch}/trace", JsonOptions);
+
+        // AC6 asks for the officer. The point of the field is that someone can go and ask them
+        // what they saw, which an opaque subject id does not support.
+        Assert.Equal("test-user", trace.GetProperty("screenedBy").GetString());
+        Assert.Equal("test-user", trace.GetProperty("dispatchedBy").GetString());
+
+        var consignment = trace.GetProperty("tanks")[0].GetProperty("consignments")[0];
+
+        Assert.Equal("test-user", consignment.GetProperty("registeredBy").GetString());
+        Assert.Equal("test-user", consignment.GetProperty("pouredBy").GetString());
+        Assert.Equal("test-user", consignment.GetProperty("qualityTest").GetProperty("testedBy").GetString());
     }
 
     [Fact]

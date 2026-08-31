@@ -176,7 +176,7 @@ public class DispatchNotesController : ControllerBase
         try
         {
             var note = await _dispatch.RecordAsync(
-                request.ToCommand(User.UserId() ?? User.UserName()),
+                request.ToCommand(User.OfficerIdentity()),
                 cancellationToken);
 
             return CreatedAtAction(nameof(Get), new { reference = note.Reference }, note);

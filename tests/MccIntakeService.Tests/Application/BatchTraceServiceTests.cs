@@ -349,6 +349,31 @@ public class BatchTraceServiceTests : IDisposable
     }
 
     [Fact]
+    public void Added_water_is_scored_against_its_ceiling()
+    {
+        // Every other measure fails by being too low; this one fails by being too high, so its
+        // room is the distance down from the ceiling. 0.49 against a 0.50 limit leaves 2%.
+        var margins = MarginToThreshold.For(FakeTest(4.5m, water: 0.49m), Thresholds);
+
+        var water = Assert.Single(margins, margin => margin.Measure == "WaterPercent");
+
+        Assert.Equal(0.02m, water.Margin);
+        Assert.Equal("0.50", water.Threshold);
+    }
+
+    [Fact]
+    public void A_consignment_close_to_the_water_limit_scores_on_it()
+    {
+        // Comfortable on every other measure, 2% of room against the adulteration limit. While
+        // added water went unscored this consignment ranked as though it were clean, which is
+        // the wrong supplier to point a QCO chasing adulteration at.
+        var tightest = MarginToThreshold.Tightest(FakeTest(4.5m, water: 0.49m), Thresholds);
+
+        Assert.Equal(0.02m, tightest);
+        Assert.True(tightest < MarginToThreshold.Tightest(FakeTest(4.5m), Thresholds));
+    }
+
+    [Fact]
     public async Task An_unknown_batch_reference_gives_nothing()
     {
         var service = CreateService(out var context);
@@ -368,7 +393,7 @@ public class BatchTraceServiceTests : IDisposable
             MarginToThreshold.For(FakeTest(7.00m), thresholds).First(m => m.Measure == "FatPercent").Margin);
     }
 
-    private static QualityTest FakeTest(decimal fat)
+    private static QualityTest FakeTest(decimal fat, decimal water = 0m)
     {
         var society = new MccIntakeService.Domain.Societies.Society(Guid.NewGuid(), "KC", "Kandy", "KC");
 
@@ -377,7 +402,7 @@ public class BatchTraceServiceTests : IDisposable
             new DateTime(2026, 8, 23, 7, 0, 0), [new CanEntry(1, 41.2m)], 1.03m,
             new TimeOnly(16, 0), new DateTime(2026, 8, 23, 8, 0, 0), DateTimeOffset.UtcNow);
 
-        var readings = new PanelReadings(fat, 29.5m, 29.0m, 0m,
+        var readings = new PanelReadings(fat, 29.5m, 29.0m, water,
             new Dictionary<AlcoholStage, StageOutcome> { [AlcoholStage.Alcohol80] = StageOutcome.Negative },
             KqColour.Blue);
 
