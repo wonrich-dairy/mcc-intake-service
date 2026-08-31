@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Factory;
@@ -96,6 +96,10 @@ public sealed class FactoryIntakeService : IFactoryIntakeService
 
         var arrivedAtLocal = command.ArrivedAtLocal ?? _clock.LocalNow;
 
+        // Checked before the reference is issued, so an impossible arrival time never burns a
+        // batch number. ArrivalScreening.Screen re-runs it.
+        ArrivalScreening.EnsureArrivalIsScreenable(arrivedAtLocal, note.DispatchedAtLocal, _clock.LocalNow);
+
         var checks = new ScreeningChecks(
             command.SmellPassed,
             command.ColourPassed,
@@ -115,6 +119,7 @@ public sealed class FactoryIntakeService : IFactoryIntakeService
             checks,
             batchReference,
             command.ScreenedBy,
+            _clock.LocalNow,
             _clock.UtcNow);
 
         _dbContext.ArrivalScreenings.Add(screening);

@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.Common;
+﻿using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.Dispatch;
 
 namespace MccIntakeService.Domain.Factory;
@@ -138,6 +138,7 @@ public class ArrivalScreening
     /// <param name="checks">The three screening results.</param>
     /// <param name="batchReference">Reference to give the batch, used only when it passes.</param>
     /// <param name="screenedBy">Factory intake officer identifier.</param>
+    /// <param name="nowLocal">Current wall-clock time at the factory.</param>
     /// <param name="screenedAtUtc">Instant the screening was submitted.</param>
     public static ArrivalScreening Screen(
         Guid id,
@@ -146,10 +147,13 @@ public class ArrivalScreening
         ScreeningChecks checks,
         string batchReference,
         string? screenedBy,
+        DateTime nowLocal,
         DateTimeOffset screenedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(dispatchNote);
         ArgumentNullException.ThrowIfNull(checks);
+
+        EnsureArrivalIsScreenable(arrivedAtLocal, dispatchNote.DispatchedAtLocal, nowLocal);
 
         var failed = checks.FailedParameters;
 
@@ -183,6 +187,37 @@ public class ArrivalScreening
             screenedAtUtc);
 
         return screening;
+    }
+
+    /// <summary>
+    /// Validates the arrival time on its own, so a caller can reject one before spending a round
+    /// trip issuing a batch reference. <see cref="Screen"/> re-runs this check.
+    /// </summary>
+    /// <param name="arrivedAtLocal">Wall-clock arrival time as captured.</param>
+    /// <param name="dispatchedAtLocal">When the bowser left the chilling centre.</param>
+    /// <param name="nowLocal">Current wall-clock time at the factory.</param>
+    public static void EnsureArrivalIsScreenable(
+        DateTime arrivedAtLocal,
+        DateTime dispatchedAtLocal,
+        DateTime nowLocal)
+    {
+        // The officer may correct the captured arrival time, but only backwards: a bowser cannot
+        // arrive in the future. Left unbounded this dates the batch reference too, on a record
+        // production then works from. The skew allowance matches the gate's.
+        if (arrivedAtLocal > nowLocal.AddMinutes(1))
+        {
+            throw new DomainValidationException(
+                $"Arrival time {arrivedAtLocal:yyyy-MM-dd HH:mm} is in the future and cannot be recorded.");
+        }
+
+        // And it cannot have arrived before it left. The dispatch note is the other half of the
+        // same journey, so the bound comes from the record rather than from a guessed window.
+        if (arrivedAtLocal < dispatchedAtLocal)
+        {
+            throw new DomainValidationException(
+                $"Arrival time {arrivedAtLocal:yyyy-MM-dd HH:mm} is before the bowser was dispatched "
+                + $"at {dispatchedAtLocal:yyyy-MM-dd HH:mm}.");
+        }
     }
 }
 
