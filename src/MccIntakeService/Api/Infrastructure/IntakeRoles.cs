@@ -26,4 +26,7 @@ public static class IntakePolicies
 
     /// <summary>Record a bowser dispatch note (SCRUM-8).</summary>
     public const string RecordDispatchNotes = "RecordDispatchNotes";
+
+    /// <summary>Screen an arriving bowser and create the batch at factory intake (SCRUM-9).</summary>
+    public const string ScreenFactoryArrivals = "ScreenFactoryArrivals";
 }

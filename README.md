@@ -81,6 +81,9 @@ excludes generated EF migrations from the coverage figure.
 | `GET` | `/api/dispatch-notes` | Bowser dispatch notes; `date` filters by dispatch date (SCRUM-8). |
 | `GET` | `/api/dispatch-notes/{reference}` | One note, resolved to its contributing consignments. |
 | `POST` | `/api/dispatch-notes` | Record a note and close the fill of every tank it empties. |
+| `POST` | `/api/factory/arrivals` | Screen an arriving bowser and create the batch (SCRUM-9). |
+| `GET` | `/api/factory/batches` | Batches; `date` and `dispatchNote` filter. |
+| `GET` | `/api/factory/batches/{reference}` | One batch by reference. |
 | `GET` | `/api/societies` | Societies for gate selection; `search`, `sortBy`, `descending`, `includeInactive` (SCRUM-51). |
 | `GET` | `/api/societies/{id}` | Fetch one society. |
 | `POST` | `/api/societies` | Register a supplying society (SCRUM-51). |
@@ -176,6 +179,21 @@ Each source resolves to the consignments that contributed to it through the mani
 it drew from, which is what lets the factory trace a failure back to a society. Reading the whole
 tank instead would fold in milk that arrived after the bowser had already gone. Notes are
 read-only once submitted.
+
+### Factory intake
+An arriving bowser is screened on smell, colour and temperature (SCRUM-9). A failure on any one
+blocks the batch and records the rejection with the parameters that failed, so spoiled milk never
+enters the system as something production can draw on — while the turn-away still leaves a trail.
+
+A clean pass creates a batch, `WR-YYYYMMDD-NN`, linked to the dispatch note it arrived on. The
+reference is only spent when the screening passes, so a rejected arrival leaves no gap in the
+day's sequence. A dispatch note is screened once, pass or fail: screening it again would leave two
+answers about the same bowser.
+
+`arrivedAtLocal` is bounded the way `dispatchedAtLocal` is, and for the same reason — it dates the
+batch reference. It cannot be in the future, on the gate's one-minute skew allowance, and it
+cannot precede the dispatch time on the note: a bowser cannot arrive before it left. The bound is
+checked before the reference is issued, so an impossible arrival time never burns a batch number.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are
