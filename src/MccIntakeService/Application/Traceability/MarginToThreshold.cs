@@ -1,4 +1,4 @@
-using MccIntakeService.Domain.QualityTests;
+﻿using MccIntakeService.Domain.QualityTests;
 using Wonrich.QualityPanel;
 using Wonrich.QualityPanel.Configuration;
 
@@ -47,6 +47,7 @@ public static class MarginToThreshold
             AtLeast("FatPercent", test.FatPercent, thresholds.MinimumFatPercent),
             AtLeast("CorrectedClr", test.CorrectedClr, thresholds.MinimumCorrectedClr),
             AtLeast("Snf", test.Snf, thresholds.MinimumSnf),
+            AtMost("WaterPercent", test.WaterPercent, thresholds.MaximumWaterPercent),
             OnScale(
                 "KqColour",
                 test.KqColour,
@@ -84,6 +85,19 @@ public static class MarginToThreshold
         value.ToString("0.00"),
         minimum.ToString("0.00"),
         minimum == 0 ? 1m : decimal.Round((value - minimum) / minimum, 4, MidpointRounding.AwayFromZero));
+
+    /// <summary>
+    /// A measure with a ceiling. Added water is the one threshold the panel judges from above:
+    /// every other measure fails by being too low, this one by being too high. Room is expressed
+    /// relative to the ceiling so it compares with the rest.
+    /// </summary>
+    private static MeasureMargin AtMost(string measure, decimal value, decimal maximum) => new(
+        measure,
+        value.ToString("0.00"),
+        maximum.ToString("0.00"),
+        // A ceiling of zero leaves no room by definition; anything above it was rejected at the
+        // gate and never reaches this ranking, so the reading can only be sitting on the limit.
+        maximum == 0 ? 0m : decimal.Round((maximum - value) / maximum, 4, MidpointRounding.AwayFromZero));
 
     /// <summary>
     /// A measure on an ordered scale. Room is the number of steps left before the worst
