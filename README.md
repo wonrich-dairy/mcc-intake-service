@@ -84,6 +84,8 @@ excludes generated EF migrations from the coverage figure.
 | `POST` | `/api/factory/arrivals` | Screen an arriving bowser and create the batch (SCRUM-9). |
 | `GET` | `/api/factory/batches` | Batches; `date` and `dispatchNote` filter. |
 | `GET` | `/api/factory/batches/{reference}` | One batch by reference. |
+| `GET` | `/api/factory/batches/{reference}/trace` | Resolve a batch to its tanks and consignments (SCRUM-12). |
+| `POST` | `/api/sync` | Upload an officer's offline queue (SCRUM-10). |
 | `GET` | `/api/societies` | Societies for gate selection; `search`, `sortBy`, `descending`, `includeInactive` (SCRUM-51). |
 | `GET` | `/api/societies/{id}` | Fetch one society. |
 | `POST` | `/api/societies` | Register a supplying society (SCRUM-51). |
@@ -194,6 +196,55 @@ answers about the same bowser.
 batch reference. It cannot be in the future, on the gate's one-minute skew allowance, and it
 cannot precede the dispatch time on the note: a bowser cannot arrive before it left. The bound is
 checked before the reference is issued, so an impossible arrival time never burns a batch number.
+
+### Batch traceability
+A batch resolves back through its dispatch note to the tanks it drew from and every consignment in
+the load each one gave up, with the full gate results for each (SCRUM-12). The walk is scoped to
+the tank fill the bowser drew from, not the tank: a tank refilled since would otherwise put milk
+the bowser never carried on the batch, and rank its society among the suppliers to look at.
+
+Contributing societies are ranked **most marginal first** — the supplier whose milk passed the
+gate by the narrowest room. Measures sit on different scales (percentages, lactometer degrees,
+positions on a colour card), so each is converted to a fraction of its own scale and the tightest
+becomes the score. It is a triage aid, not a verdict: everything ranked here already passed.
+
+Every threshold the panel rejects on is scored, added water included. It is the one measure judged
+from above rather than below, so its room is the distance down from the ceiling; left out, a
+consignment sitting just under the adulteration limit ranked as though it were clean.
+
+Officer fields carry the sign-in name rather than the subject id. The point of naming the officer
+is that someone can go and ask them what they saw.
+
+Anything that cannot be resolved upstream is listed explicitly under `missing` rather than left
+blank, so a gap never reads as a clean result. A society with no gate results ranks *last*, not
+first — unknown is not the same as safe, and the missing entries are what flag it.
+
+### Offline sync
+`POST /api/sync` takes an officer's queue of records captured without a network — registrations,
+gate panels and pours — and applies them in the order they were created (SCRUM-10).
+
+The upload is **idempotent on the client's own record identifier**. A handheld that drops
+connectivity mid-upload cannot know whether the server took a record, so its only safe move is to
+send the queue again; the server is the side that has to remember. A replayed record comes back as
+`Duplicate` carrying the reference the first attempt produced, not a bare acknowledgement.
+
+Each record is reported separately, so **one bad record never sinks the queue behind it**: the
+failure is returned with a reason and nothing is remembered for it, leaving the client free to
+retry once the cause is fixed. Each is applied inside its own transaction, so a record either
+lands with the row that acknowledges it or leaves nothing at all — the services below commit as
+they go, and a half-applied record the client is told nothing about would be uploaded again. A
+store failure counts as a record failure for the same reason: a 500 tells the client nothing about
+which of its queue landed.
+
+A queued record must carry the time it was captured. The server cannot supply it, because the
+moment of upload is not when the milk arrived: dated on arrival at the server, milk taken in at
+09:00 and synced at 18:00 would be refused against the SCRUM-6 cutoff — intake blocked by network
+conditions, which is the outcome this story exists to rule out. References are always issued by the server, exactly as they are
+online, so a record captured offline cannot collide with one already handed out.
+
+> The client half of SCRUM-10 — local storage, the pending indicator, the queue count and
+> automatic upload on reconnection — lives in the frontend repository. This service provides the
+> endpoint those depend on.
 
 ### Quantities
 Cans are weighed at the gate, so `POST /api/consignments` takes `quantityKg` per can. Litres are

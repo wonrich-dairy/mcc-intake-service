@@ -263,7 +263,7 @@ public class QualityTestServiceTests : IDisposable
                 [AlcoholStage.Alcohol75] = StageOutcome.Negative,
                 [AlcoholStage.Alcohol68] = StageOutcome.Positive
             },
-            TestVerdict.Accept, null, null, "officer-1");
+            TestVerdict.Accept, TestedBy: "officer-1");
 
         var view = await service.RecordAsync(reference, command);
 

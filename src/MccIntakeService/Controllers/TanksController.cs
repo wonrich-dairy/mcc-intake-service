@@ -110,7 +110,7 @@ public class TanksController : ControllerBase
             var manifest = await _tanks.PourAsync(
                 code,
                 request.ConsignmentReference,
-                User.UserId() ?? User.UserName(),
+                User.OfficerIdentity(),
                 cancellationToken);
 
             return CreatedAtAction(nameof(Manifest), new { code }, manifest);

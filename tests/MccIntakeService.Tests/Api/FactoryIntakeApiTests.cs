@@ -167,6 +167,12 @@ public class FactoryIntakeApiTests
         var response = await client.PostAsJsonAsync("/api/factory/arrivals", Screening("DN-20260823-99"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        // The route publishes IntakeProblemDetails for this status, so the body has to carry the
+        // code a caller branches on, not just the status.
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("entity_not_found", problem.GetProperty("code").GetString());
+        Assert.Contains("wonrich.dev", problem.GetProperty("type").GetString()!, StringComparison.Ordinal);
     }
 
     [Fact]

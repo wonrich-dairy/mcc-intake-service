@@ -53,7 +53,8 @@ public class ConsignmentsController : ControllerBase
         var command = new RegisterConsignmentCommand(
             request.SocietyId,
             request.ToCanEntries(),
-            request.ArrivalAtLocal);
+            request.ArrivalAtLocal,
+            User.OfficerIdentity());
 
         var consignment = await _consignments.RegisterAsync(command, cancellationToken);
 
@@ -79,10 +80,11 @@ public class ConsignmentsController : ControllerBase
 
         if (consignment is null)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Consignment not found",
-                detail: $"No consignment is registered under reference '{reference}'.");
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                "entity_not_found",
+                "Consignment not found",
+                $"No consignment is registered under reference '{reference}'.");
         }
 
         return Ok(consignment);

@@ -3,6 +3,7 @@ using MccIntakeService.Domain.Dispatch;
 using MccIntakeService.Domain.Factory;
 using MccIntakeService.Domain.QualityTests;
 using MccIntakeService.Domain.Societies;
+using MccIntakeService.Domain.Sync;
 using MccIntakeService.Domain.Tanks;
 using MccIntakeService.Models;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,9 @@ public class MccIntakeDbContext : DbContext
 
     /// <summary>Production batches created by a passing arrival screening (SCRUM-9).</summary>
     public DbSet<Batch> Batches => Set<Batch>();
+
+    /// <summary>Offline records already uploaded, so a replayed queue applies once (SCRUM-10).</summary>
+    public DbSet<SyncedRecord> SyncedRecords => Set<SyncedRecord>();
 
     /// <summary>
     /// Chilling centres registered in the system (SCRUM-36). Distinct from <see cref="Society"/>:
