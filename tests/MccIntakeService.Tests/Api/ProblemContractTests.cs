@@ -156,14 +156,40 @@ public class ProblemContractTests : IClassFixture<IntakeApiFactoryFixture>
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
-    [Fact]
-    public async Task A_404_is_served_as_problem_json()
+    /// <summary>
+    /// Every route-addressed 404 in the service, which the controllers write themselves rather
+    /// than raising through <c>DomainExceptionHandler</c>. Each publishes
+    /// <c>IntakeProblemDetails</c>, so each has to answer with the code and type URI that contract
+    /// promises. Bare <c>Problem(...)</c> returns neither, and the omission is invisible from the
+    /// status alone — which is how four controllers kept it after SCRUM-12 fixed the fifth.
+    /// </summary>
+    public static TheoryData<string> RouteAddressedNotFound() => new()
     {
-        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        "/api/consignments/MCC-20260823-KC-99",
+        "/api/consignments/MCC-20260823-KC-99/quality-test",
+        "/api/societies/8f6b0f9c-0000-4000-8000-000000000000",
+        "/api/tanks/T99/manifest",
+        "/api/dispatch-notes/DN-20260823-99",
+        "/api/factory/batches/WR-20260823-99",
+        "/api/factory/batches/WR-20260823-99/trace"
+    };
 
-        var response = await client.GetAsync("/api/consignments/MCC-20260823-KC-99");
+    [Theory]
+    [MemberData(nameof(RouteAddressedNotFound))]
+    public async Task A_404_is_problem_json_carrying_the_code_and_type(string route)
+    {
+        // SystemAdministrator satisfies every policy, so one client reaches all of these and the
+        // case stays about the body rather than about who may ask.
+        var client = _factory.CreateClientAs(WonrichRoles.SystemAdministrator);
+
+        var response = await client.GetAsync(route);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal("entity_not_found", problem.GetProperty("code").GetString());
+        Assert.Contains("wonrich.dev", problem.GetProperty("type").GetString()!, StringComparison.Ordinal);
     }
 }
