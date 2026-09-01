@@ -205,8 +205,9 @@ public class SocietiesController : ControllerBase
         }
     }
 
-    private ObjectResult NotFoundProblem(Guid id) => Problem(
-        statusCode: StatusCodes.Status404NotFound,
-        title: "Society not found",
-        detail: $"No society is registered under identifier '{id}'.");
+    private ObjectResult NotFoundProblem(Guid id) => this.IntakeProblem(
+        StatusCodes.Status404NotFound,
+        "entity_not_found",
+        "Society not found",
+        $"No society is registered under identifier '{id}'.");
 }

@@ -80,10 +80,11 @@ public class ConsignmentsController : ControllerBase
 
         if (consignment is null)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Consignment not found",
-                detail: $"No consignment is registered under reference '{reference}'.");
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                "entity_not_found",
+                "Consignment not found",
+                $"No consignment is registered under reference '{reference}'.");
         }
 
         return Ok(consignment);
