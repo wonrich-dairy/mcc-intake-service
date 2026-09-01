@@ -103,12 +103,15 @@ public class FactoryIntakeController : ControllerBase
                 ? Created(string.Empty, screening)
                 : CreatedAtAction(nameof(GetBatch), new { reference = screening.Batch.Reference }, screening);
         }
-        catch (EntityNotFoundException)
+        catch (EntityNotFoundException exception)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Dispatch note not found",
-                detail: $"No dispatch note carries the reference '{request.DispatchNoteReference}'.");
+            // The note is named in the body rather than the route, but it is what the officer
+            // scanned, so it answers 404 here as it does on the dispatch routes.
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                exception.Code,
+                "Dispatch note not found",
+                $"No dispatch note carries the reference '{request.DispatchNoteReference}'.");
         }
         catch (DomainValidationException exception) when (exception.Message.Contains(
             "already been screened", StringComparison.OrdinalIgnoreCase))
@@ -145,10 +148,11 @@ public class FactoryIntakeController : ControllerBase
 
         if (batch is null)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Batch not found",
-                detail: $"No batch carries the reference '{reference}'.");
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                "entity_not_found",
+                "Batch not found",
+                $"No batch carries the reference '{reference}'.");
         }
 
         return Ok(batch);

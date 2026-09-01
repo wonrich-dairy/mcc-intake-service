@@ -75,12 +75,16 @@ public class QualityTestsController : ControllerBase
 
             return CreatedAtAction(nameof(Get), new { reference }, view);
         }
-        catch (EntityNotFoundException)
+        catch (EntityNotFoundException exception)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Consignment not found",
-                detail: $"No consignment is registered under reference '{reference}'.");
+            // Addressed by the route, so 404 rather than the 422 the handler gives a body
+            // reference. The prose names the reference the caller used; the code comes from the
+            // exception so it cannot drift from what the handler writes.
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                exception.Code,
+                "Consignment not found",
+                $"No consignment is registered under reference '{reference}'.");
         }
         catch (DomainValidationException exception) when (exception.Message.Contains(
             "already been tested", StringComparison.OrdinalIgnoreCase))
@@ -104,10 +108,11 @@ public class QualityTestsController : ControllerBase
 
         if (view is null)
         {
-            return Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "No quality test recorded",
-                detail: $"Consignment '{reference}' has not been tested.");
+            return this.IntakeProblem(
+                StatusCodes.Status404NotFound,
+                "entity_not_found",
+                "No quality test recorded",
+                $"Consignment '{reference}' has not been tested.");
         }
 
         return Ok(view);
