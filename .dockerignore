@@ -11,3 +11,7 @@
 **/.editorconfig
 **/coverage
 **/*.log
+**/appsettings.Development.json
+**/appsettings.*.local.json
+**/.DS_Store
+**/docs
