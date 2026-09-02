@@ -8,6 +8,15 @@ using Wonrich.AuthService.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("frontend", policy =>
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials());
+});
+
 builder.Services.AddControllers();
 
 // Persistence. The auth service keeps its own database: user credentials must not sit in a
@@ -58,6 +67,8 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 app.UseExceptionHandler();
+
+app.UseCors("frontend");
 
 if (!app.Environment.IsProduction())
 {
