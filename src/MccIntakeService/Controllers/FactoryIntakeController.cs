@@ -116,10 +116,14 @@ public class FactoryIntakeController : ControllerBase
         catch (DomainValidationException exception) when (exception.Message.Contains(
             "already been screened", StringComparison.OrdinalIgnoreCase))
         {
-            return Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Arrival already screened",
-                detail: exception.Message);
+            // Through the helper, not Problem(...), so the refusal carries the code this route
+            // publishes and its 404 already writes. The code comes from the exception so it cannot
+            // drift from what the handler writes for the same rule.
+            return this.IntakeProblem(
+                StatusCodes.Status409Conflict,
+                exception.Code,
+                "Arrival already screened",
+                exception.Message);
         }
     }
 

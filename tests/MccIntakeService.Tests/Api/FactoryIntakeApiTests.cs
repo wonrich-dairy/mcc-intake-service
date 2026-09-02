@@ -156,6 +156,12 @@ public class FactoryIntakeApiTests
 
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
         Assert.Equal("application/problem+json", again.Content.Headers.ContentType?.MediaType);
+
+        // The route publishes IntakeProblemDetails for 409, so the body owes a code to branch on
+        // just as the 404 on this route does.
+        var problem = await again.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(string.IsNullOrEmpty(problem.GetProperty("code").GetString()));
+        Assert.Contains("wonrich.dev", problem.GetProperty("type").GetString()!, StringComparison.Ordinal);
     }
 
     [Fact]
