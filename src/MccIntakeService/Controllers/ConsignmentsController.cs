@@ -9,8 +9,16 @@ namespace MccIntakeService.Controllers;
 /// <summary>
 /// Registration and lookup of society consignments arriving at the milk chilling centre (SCRUM-6).
 /// </summary>
+/// <remarks>
+/// Every action needs an authenticated caller. A consignment carries supplier names, contact
+/// numbers, per-can quantities and the officer who registered it, so the lookups are no more
+/// public than the registration is. Stacked <c>[Authorize]</c> attributes are combined rather than
+/// replaced, so <see cref="IntakePolicies.RegisterConsignments"/> still narrows the write.
+/// </remarks>
 [ApiController]
 [Route("api/consignments")]
+[Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public class ConsignmentsController : ControllerBase
 {
     /// <summary>Media type every error response on this controller is served as (RFC 9457).</summary>

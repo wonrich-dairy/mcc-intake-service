@@ -10,7 +10,7 @@ namespace MccIntakeService.Tests.Api;
 
 /// <summary>
 /// Covers the SCRUM-51 rule that only MCC Managers and System Administrators may maintain
-/// societies, while anyone may read the list to pick a society at the gate.
+/// societies, while any authenticated caller may read the list to pick a society at the gate.
 /// </summary>
 public class SocietyAuthorizationApiTests
 {
@@ -125,15 +125,32 @@ public class SocietyAuthorizationApiTests
     }
 
     [Fact]
-    public async Task Reading_a_single_society_stays_open_to_an_unauthenticated_caller()
+    public async Task Reading_a_single_society_stays_open_to_an_intake_officer()
+    {
+        using var factory = NewFactory();
+        var officer = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+
+        var societies = await officer.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
+        var response = await officer.GetAsync($"/api/societies/{societies![0].Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>
+    /// A society record carries its contact person and phone number, so the reads are behind the
+    /// controller-level <c>[Authorize]</c> even though no policy narrows them further.
+    /// </summary>
+    [Theory]
+    [InlineData("/api/societies")]
+    [InlineData("/api/societies/00000000-0000-0000-0000-000000000000")]
+    public async Task An_unauthenticated_caller_may_not_read_societies(string route)
     {
         using var factory = NewFactory();
         var anonymous = factory.CreateClient();
 
-        var societies = await anonymous.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
-        var response = await anonymous.GetAsync($"/api/societies/{societies![0].Id}");
+        var response = await anonymous.GetAsync(route);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
@@ -162,7 +179,7 @@ public class SocietyAuthorizationApiTests
             return route;
         }
 
-        var societies = await factory.CreateClient()
+        var societies = await factory.CreateClientAs(WonrichRoles.IntakeOfficer)
             .GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
 
         return route.Replace("{id}", societies![0].Id.ToString(), StringComparison.Ordinal);

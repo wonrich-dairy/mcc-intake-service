@@ -221,6 +221,21 @@ public class ConsignmentsApiTests : IClassFixture<IntakeApiFactoryFixture>
         });
     }
 
+    /// <summary>
+    /// The lookups expose supplier names, contact numbers, per-can quantities and the officer who
+    /// registered the consignment, so they are guarded by the controller-level <c>[Authorize]</c>
+    /// just as the registration is.
+    /// </summary>
+    [Theory]
+    [InlineData("/api/consignments?pageSize=1")]
+    [InlineData("/api/consignments/MCC-20260823-KC-01")]
+    public async Task An_unauthenticated_caller_may_not_read_consignments(string route)
+    {
+        var response = await _factory.CreateClient().GetAsync(route);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     [Fact]
     public async Task The_swagger_document_lists_the_consignment_endpoints()
     {

@@ -12,11 +12,21 @@ namespace MccIntakeService.Controllers;
 /// list to pick a society at the gate; MCC Managers maintain it.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Societies are never deleted. Retiring one keeps it resolvable from historical consignments
 /// while removing it from the list an officer can select at the gate.
+/// </para>
+/// <para>
+/// Reading the list is open to any authenticated caller — every role that works a gate or a
+/// factory bay needs it — but not to an anonymous one, because a society record carries its
+/// contact person and phone number. Stacked <c>[Authorize]</c> attributes are combined rather
+/// than replaced, so <see cref="IntakePolicies.ManageSocieties"/> still narrows the writes.
+/// </para>
 /// </remarks>
 [ApiController]
 [Route("api/societies")]
+[Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public class SocietiesController : ControllerBase
 {
     /// <summary>Media type every error response on this controller is served as (RFC 9457).</summary>
