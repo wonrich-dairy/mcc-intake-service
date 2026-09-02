@@ -173,8 +173,11 @@ public class QualityTest
 
         if (consignment.Status != ConsignmentStatus.Registered)
         {
-            throw new DomainValidationException(
-                $"Consignment {consignment.Reference} has already been tested and is {consignment.Status}.");
+            // The same rule the service pre-checks, so it raises the same exception: a consignment
+            // only leaves Registered by being tested, and one door must not answer 409 while the
+            // other answers 400.
+            throw new ConsignmentAlreadyTestedException(
+                consignment.Reference, consignment.Status.ToString());
         }
 
         // Clotting on boiling is not a matter of judgement: the milk is already curdled, so the

@@ -288,9 +288,11 @@ what they may do. `MccManager` and `SystemAdministrator` satisfy every policy; t
 | `RecordDispatchNotes` | — |
 
 A bowser operator drives; signing milk out to the factory is the manager's record, which is why
-there is no operator role. Guarded endpoints answer `401` when
-unauthenticated and `403` when the role is wrong. Society reads stay open, because an intake
-officer has to list societies to pick one at the gate.
+there is no operator role. Every endpoint answers `401` when unauthenticated, and a guarded one
+answers `403` when the role is wrong. Society and consignment reads sit behind authentication but
+no further policy — an intake officer has to list societies to pick one at the gate, and every
+role that works a gate or a factory bay needs to look a consignment up — but they are never open
+anonymously, because both carry supplier contact details.
 
 Refresh tokens are single use — exchanging one revokes it — and are stored only as a hash, as are
 passwords (PBKDF2-SHA256, per-password salt). Failed sign-ins are logged with the username, the

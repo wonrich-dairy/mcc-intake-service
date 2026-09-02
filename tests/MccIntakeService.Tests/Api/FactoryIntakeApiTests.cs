@@ -156,6 +156,14 @@ public class FactoryIntakeApiTests
 
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
         Assert.Equal("application/problem+json", again.Content.Headers.ContentType?.MediaType);
+
+        // The code is the contract, not the status alone: asserting it here is what would catch
+        // this refusal degrading to a 400 if the rule stopped raising its own exception.
+        var problem = await again.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("arrival_already_screened", problem.GetProperty("code").GetString());
+        Assert.Equal(
+            "https://wonrich.dev/problems/arrival_already_screened",
+            problem.GetProperty("type").GetString());
     }
 
     [Fact]

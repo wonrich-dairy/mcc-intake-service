@@ -70,11 +70,22 @@ public sealed class RecordQualityTestRequest : IValidatableObject
     public string? FailedValue { get; set; }
 
     /// <summary>
-    /// A rejection has to say what failed. Checked here so the officer gets a field-level
-    /// validation error rather than a domain rule surfacing as a generic 400.
+    /// The rules that depend on more than one field. Checked here so the officer gets a
+    /// field-level validation error rather than a domain rule surfacing as a generic 400.
     /// </summary>
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        // How many cascade stages a panel owes depends on the outcomes themselves, so
+        // [MinLength(1)] can only insist on the 80% rung. Everything past it is checked here;
+        // without this an incomplete cascade reaches the evaluator and fails as a 500.
+        if (AlcoholCascade.FirstMissingStage(AlcoholOutcomes) is { } missing)
+        {
+            yield return new ValidationResult(
+                $"The {StageLabel(missing)} result is required, because the previous stage came " +
+                "back positive. The cascade stops at the first negative.",
+                [nameof(AlcoholOutcomes)]);
+        }
+
         if (Verdict != TestVerdict.Reject)
         {
             yield break;
@@ -92,6 +103,16 @@ public sealed class RecordQualityTestRequest : IValidatableObject
                 "A rejection must record the failing value.", [nameof(FailedValue)]);
         }
     }
+
+    /// <summary>Names a stage the way the officer knows it at the bench.</summary>
+    private static string StageLabel(AlcoholStage stage) => stage switch
+    {
+        AlcoholStage.Alcohol80 => "80% alcohol",
+        AlcoholStage.Alcohol75 => "75% alcohol",
+        AlcoholStage.Alcohol68 => "68% alcohol",
+        AlcoholStage.ClotOnBoiling => "clot on boiling",
+        _ => stage.ToString()
+    };
 
     /// <summary>Maps the request onto the application command.</summary>
     public RecordTestCommand ToCommand(TestVerdict verdict, string? testedBy) => new(

@@ -144,8 +144,7 @@ public sealed class QualityTestService : IQualityTestService
         // on ConsignmentId settles a race between two officers submitting at the same moment.
         if (await _dbContext.QualityTests.AnyAsync(test => test.ConsignmentId == consignment.Id, cancellationToken))
         {
-            throw new DomainValidationException(
-                $"Consignment {reference} has already been tested.");
+            throw new ConsignmentAlreadyTestedException(reference);
         }
 
         var result = Evaluate(command);

@@ -104,6 +104,14 @@ public class QualityTestsApiTests
 
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
         Assert.Equal("application/problem+json", again.Content.Headers.ContentType?.MediaType);
+
+        // The code is the contract, not the status alone: asserting it here is what would catch
+        // this refusal degrading to a 400 if the rule stopped raising its own exception.
+        var problem = await again.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("consignment_already_tested", problem.GetProperty("code").GetString());
+        Assert.Equal(
+            "https://wonrich.dev/problems/consignment_already_tested",
+            problem.GetProperty("type").GetString());
     }
 
     [Fact]
@@ -176,6 +184,41 @@ public class QualityTestsApiTests
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// <summary>
+    /// A positive at 80% obliges the 75% rung. Stopping there is a well-formed request that the
+    /// cascade cannot replay, and the officer has to be told which stage is outstanding rather
+    /// than shown a 500.
+    /// </summary>
+    [Theory]
+    [InlineData("/api/consignments/{reference}/quality-test")]
+    [InlineData("/api/consignments/{reference}/quality-test/preview")]
+    public async Task An_incomplete_alcohol_cascade_returns_400(string route)
+    {
+        using var factory = new IntakeApiFactory();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        var reference = await RegisterConsignmentAsync(client);
+
+        var response = await client.PostAsJsonAsync(
+            route.Replace("{reference}", reference, StringComparison.Ordinal),
+            new
+            {
+                fatPercent = 4.1m,
+                rawLactometerReading = 28.5m,
+                temperatureCelsius = 29.0m,
+                waterPercent = 0m,
+                kqColour = "Blue",
+                alcoholOutcomes = new Dictionary<string, string> { ["Alcohol80"] = "Positive" },
+                verdict = "Accept"
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        // The error has to name the field, so the client can put it against the right input.
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var message = problem.GetProperty("errors").GetProperty("AlcoholOutcomes")[0].GetString();
+        Assert.Contains("75% alcohol", message!, StringComparison.Ordinal);
     }
 
     [Fact]

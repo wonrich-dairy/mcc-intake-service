@@ -113,14 +113,9 @@ public class FactoryIntakeController : ControllerBase
                 "Dispatch note not found",
                 $"No dispatch note carries the reference '{request.DispatchNoteReference}'.");
         }
-        catch (DomainValidationException exception) when (exception.Message.Contains(
-            "already been screened", StringComparison.OrdinalIgnoreCase))
-        {
-            return Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Arrival already screened",
-                detail: exception.Message);
-        }
+        // A second screening of the same note is not caught here: ArrivalAlreadyScreenedException
+        // carries its own code, so DomainExceptionHandler answers it 409 for every route that
+        // raises it, in the same shape as this action's 404.
     }
 
     /// <summary>Lists batches, optionally by date or by originating dispatch note.</summary>

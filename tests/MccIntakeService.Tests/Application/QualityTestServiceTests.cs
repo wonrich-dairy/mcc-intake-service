@@ -233,10 +233,13 @@ public class QualityTestServiceTests : IDisposable
             new QualityPanelEvaluator(Options.Create(new QualityThresholds())),
             _clock);
 
-        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+        // The type, not the wording: the API answers 409 from Code, so a reworded message must not
+        // be able to turn this refusal into something else.
+        var exception = await Assert.ThrowsAsync<ConsignmentAlreadyTestedException>(
             () => again.RecordAsync(reference, SoundPanel()));
 
-        Assert.Contains("already been tested", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("consignment_already_tested", exception.Code);
+        Assert.Equal(reference, exception.Reference);
     }
 
     [Fact]

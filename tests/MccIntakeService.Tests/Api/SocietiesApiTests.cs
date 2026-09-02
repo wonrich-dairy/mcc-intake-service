@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using MccIntakeService.Application.Societies;
 using MccIntakeService.Tests.Support;
+using Wonrich.Auth.Authorization;
 
 namespace MccIntakeService.Tests.Api;
 
@@ -20,7 +21,7 @@ public class SocietiesApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task The_seeded_societies_are_offered_for_selection()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var societies = await client.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
 
@@ -31,7 +32,7 @@ public class SocietiesApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task A_single_society_can_be_fetched_by_identifier()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var societies = await client.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
         var expected = societies!.Single(society => society.Code == "KC");
@@ -46,7 +47,7 @@ public class SocietiesApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task Fetching_an_unknown_society_returns_404()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var response = await client.GetAsync($"/api/societies/{Guid.NewGuid()}");
 
@@ -56,7 +57,7 @@ public class SocietiesApiTests : IClassFixture<IntakeApiFactoryFixture>
     [Fact]
     public async Task A_malformed_society_identifier_does_not_match_the_route()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClientAs(WonrichRoles.IntakeOfficer);
 
         var response = await client.GetAsync("/api/societies/not-a-guid");
 

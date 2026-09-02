@@ -86,14 +86,9 @@ public class QualityTestsController : ControllerBase
                 "Consignment not found",
                 $"No consignment is registered under reference '{reference}'.");
         }
-        catch (DomainValidationException exception) when (exception.Message.Contains(
-            "already been tested", StringComparison.OrdinalIgnoreCase))
-        {
-            return Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Consignment already tested",
-                detail: exception.Message);
-        }
+        // A second test on the same consignment is not caught here: ConsignmentAlreadyTestedException
+        // carries its own code, so DomainExceptionHandler answers it 409 for every route that
+        // raises it, in the same shape as this action's 404.
     }
 
     /// <summary>Reads back the panel recorded against a consignment.</summary>

@@ -121,14 +121,49 @@ public static class AlcoholCascade
     /// the cascade defines them as never having been run.
     /// </summary>
     /// <param name="outcomes">Outcomes by stage; a stage the cascade reaches must be present.</param>
+    /// <exception cref="ArgumentException">A stage the cascade reaches has no recorded outcome.</exception>
     public static CascadeResult Replay(IReadOnlyDictionary<AlcoholStage, StageOutcome> outcomes)
     {
         ArgumentNullException.ThrowIfNull(outcomes);
 
-        return Run(stage => outcomes.TryGetValue(stage, out var outcome)
-            ? outcome
-            : throw new ArgumentException(
-                $"The cascade reached {stage} but no outcome was recorded for it.", nameof(outcomes)));
+        if (FirstMissingStage(outcomes) is { } missing)
+        {
+            throw new ArgumentException(
+                $"The cascade reached {missing} but no outcome was recorded for it.", nameof(outcomes));
+        }
+
+        return Run(stage => outcomes[stage]);
+    }
+
+    /// <summary>
+    /// The first stage the cascade would reach that carries no outcome, or <c>null</c> when the
+    /// readings carry it as far as it goes.
+    /// </summary>
+    /// <remarks>
+    /// How many stages a panel owes depends on the outcomes themselves — a negative at 80% closes
+    /// the cascade, a positive obliges the next rung — so completeness cannot be expressed as a
+    /// count. This lets a caller turn an incomplete panel away with a message naming the stage it
+    /// is short of, rather than discovering it when <see cref="Replay"/> throws.
+    /// </remarks>
+    public static AlcoholStage? FirstMissingStage(IReadOnlyDictionary<AlcoholStage, StageOutcome> outcomes)
+    {
+        ArgumentNullException.ThrowIfNull(outcomes);
+
+        foreach (var stage in Order)
+        {
+            if (!outcomes.TryGetValue(stage, out var outcome))
+            {
+                return stage;
+            }
+
+            // The first negative ends the cascade, so nothing beyond it is owed.
+            if (outcome == StageOutcome.Negative)
+            {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     private static StabilityGrade GradeForNegativeAt(AlcoholStage stage) => stage switch

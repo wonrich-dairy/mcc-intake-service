@@ -82,6 +82,11 @@ public sealed class DomainExceptionHandler : IExceptionHandler
         // The milk is already in a tank: a conflict with what has been recorded, not bad input.
         ConsignmentAlreadyPouredException => (StatusCodes.Status409Conflict, "Consignment already poured"),
 
+        // Likewise a second gate verdict or a second screening of the same bowser: the record
+        // already answers the question, so these are conflicts rather than bad input.
+        ConsignmentAlreadyTestedException => (StatusCodes.Status409Conflict, "Consignment already tested"),
+        ArrivalAlreadyScreenedException => (StatusCodes.Status409Conflict, "Arrival already screened"),
+
         // Something the request body points at does not exist. A resource addressed by the route
         // instead answers 404, which the controllers handle themselves.
         EntityNotFoundException => (StatusCodes.Status422UnprocessableEntity, "Referenced record does not exist"),

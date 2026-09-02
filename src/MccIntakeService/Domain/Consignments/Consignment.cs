@@ -155,8 +155,9 @@ public class Consignment
     {
         if (Status != ConsignmentStatus.Registered)
         {
-            throw new DomainValidationException(
-                $"Consignment {Reference} is already {Status} and cannot be settled again.");
+            // The innermost of the three guards on this rule, and it raises the same exception as
+            // the other two so the refusal cannot change shape by the door it came through.
+            throw new ConsignmentAlreadyTestedException(Reference, Status.ToString());
         }
 
         Status = verdict == QualityTests.TestVerdict.Accept
