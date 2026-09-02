@@ -150,5 +150,57 @@ public class AlcoholCascadeTests
     {
         Assert.Throws<ArgumentNullException>(() => AlcoholCascade.Run(null!));
         Assert.Throws<ArgumentNullException>(() => AlcoholCascade.Replay(null!));
+        Assert.Throws<ArgumentNullException>(() => AlcoholCascade.FirstMissingStage(null!));
+    }
+
+    [Fact]
+    public void An_empty_panel_is_short_of_the_first_stage()
+    {
+        Assert.Equal(
+            AlcoholStage.Alcohol80,
+            AlcoholCascade.FirstMissingStage(new Dictionary<AlcoholStage, StageOutcome>()));
+    }
+
+    [Theory]
+    [InlineData(AlcoholStage.Alcohol75)]
+    [InlineData(AlcoholStage.Alcohol68)]
+    [InlineData(AlcoholStage.ClotOnBoiling)]
+    public void A_positive_run_is_short_of_the_stage_below_it(AlcoholStage expected)
+    {
+        // Positive all the way down to, but not including, the stage under test.
+        var outcomes = AlcoholCascade.Order
+            .TakeWhile(stage => stage != expected)
+            .ToDictionary(stage => stage, _ => StageOutcome.Positive);
+
+        Assert.Equal(expected, AlcoholCascade.FirstMissingStage(outcomes));
+    }
+
+    [Fact]
+    public void A_panel_that_halts_on_a_negative_is_complete()
+    {
+        Assert.Null(AlcoholCascade.FirstMissingStage(Outcomes(StageOutcome.Negative)));
+        Assert.Null(AlcoholCascade.FirstMissingStage(
+            Outcomes(StageOutcome.Positive, StageOutcome.Negative)));
+    }
+
+    [Fact]
+    public void A_panel_positive_through_boiling_is_complete()
+    {
+        // Curdled: every rung was run, so nothing is outstanding even though none came back negative.
+        Assert.Null(AlcoholCascade.FirstMissingStage(Outcomes(
+            StageOutcome.Positive, StageOutcome.Positive, StageOutcome.Positive, StageOutcome.Positive)));
+    }
+
+    [Fact]
+    public void Stages_recorded_past_the_halt_do_not_make_a_panel_incomplete()
+    {
+        // The halt closes the cascade; a stray 68 reading is neither required nor missing.
+        var outcomes = new Dictionary<AlcoholStage, StageOutcome>
+        {
+            [AlcoholStage.Alcohol80] = StageOutcome.Negative,
+            [AlcoholStage.Alcohol68] = StageOutcome.Positive
+        };
+
+        Assert.Null(AlcoholCascade.FirstMissingStage(outcomes));
     }
 }
