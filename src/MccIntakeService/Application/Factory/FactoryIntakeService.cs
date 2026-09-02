@@ -90,8 +90,7 @@ public sealed class FactoryIntakeService : IFactoryIntakeService
         if (await _dbContext.ArrivalScreenings.AnyAsync(
                 screening => screening.DispatchNoteId == note.Id, cancellationToken))
         {
-            throw new DomainValidationException(
-                $"Dispatch note {command.DispatchNoteReference} has already been screened.");
+            throw new ArrivalAlreadyScreenedException(command.DispatchNoteReference);
         }
 
         var arrivedAtLocal = command.ArrivedAtLocal ?? _clock.LocalNow;

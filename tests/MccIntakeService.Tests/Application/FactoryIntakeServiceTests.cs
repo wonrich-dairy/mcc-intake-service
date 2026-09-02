@@ -260,10 +260,13 @@ public class FactoryIntakeServiceTests : IDisposable
         await service.ScreenAsync(Screening(note));
 
         await using var second = _database.CreateContext();
-        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+        // The type, not the wording: the API answers 409 from Code, so a reworded message must not
+        // be able to turn this refusal into something else.
+        var exception = await Assert.ThrowsAsync<ArrivalAlreadyScreenedException>(
             () => new FactoryIntakeService(second, _clock).ScreenAsync(Screening(note)));
 
-        Assert.Contains("already been screened", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("arrival_already_screened", exception.Code);
+        Assert.Equal(note, exception.DispatchNoteReference);
     }
 
     [Fact]
@@ -275,8 +278,10 @@ public class FactoryIntakeServiceTests : IDisposable
 
         await service.ScreenAsync(Screening(note, smell: false));
 
+        // A rejection is still an answer, so re-screening it is the same conflict as re-screening
+        // a pass — and must refuse in the same way rather than as a plain validation failure.
         await using var second = _database.CreateContext();
-        await Assert.ThrowsAsync<DomainValidationException>(
+        await Assert.ThrowsAsync<ArrivalAlreadyScreenedException>(
             () => new FactoryIntakeService(second, _clock).ScreenAsync(Screening(note)));
     }
 

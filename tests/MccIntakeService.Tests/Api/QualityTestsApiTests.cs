@@ -105,11 +105,13 @@ public class QualityTestsApiTests
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
         Assert.Equal("application/problem+json", again.Content.Headers.ContentType?.MediaType);
 
-        // The route publishes IntakeProblemDetails for 409, so the body owes a code to branch on
-        // just as the 404 on this route does.
+        // The code is the contract, not the status alone: asserting it here is what would catch
+        // this refusal degrading to a 400 if the rule stopped raising its own exception.
         var problem = await again.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.False(string.IsNullOrEmpty(problem.GetProperty("code").GetString()));
-        Assert.Contains("wonrich.dev", problem.GetProperty("type").GetString()!, StringComparison.Ordinal);
+        Assert.Equal("consignment_already_tested", problem.GetProperty("code").GetString());
+        Assert.Equal(
+            "https://wonrich.dev/problems/consignment_already_tested",
+            problem.GetProperty("type").GetString());
     }
 
     [Fact]

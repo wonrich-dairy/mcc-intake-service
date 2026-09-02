@@ -72,6 +72,51 @@ public sealed class ConsignmentAlreadyPouredException : DomainException
     public string Reference { get; }
 }
 
+/// <summary>
+/// Raised when a consignment that already carries a gate verdict is tested again (SCRUM-7).
+/// Separate from <see cref="DomainValidationException"/> for the same reason
+/// <see cref="ConsignmentAlreadyPouredException"/> is: the API answers 409 from
+/// <see cref="DomainException.Code"/> rather than by matching on the message.
+/// </summary>
+public sealed class ConsignmentAlreadyTestedException : DomainException
+{
+    public ConsignmentAlreadyTestedException(string reference, string? status = null)
+        : base(
+            "consignment_already_tested",
+            status is null
+                ? $"Consignment {reference} has already been tested."
+                : $"Consignment {reference} has already been tested and is {status}.")
+    {
+        Reference = reference;
+        Status = status;
+    }
+
+    /// <summary>Gate reference of the consignment already tested.</summary>
+    public string Reference { get; }
+
+    /// <summary>The verdict already settled on it, where the caller knew it.</summary>
+    public string? Status { get; }
+}
+
+/// <summary>
+/// Raised when a dispatch note that has already been screened at factory intake is screened again
+/// (SCRUM-9). Distinct type for the same reason as the two above: screening a note twice would
+/// leave two answers about one bowser, and that refusal is a 409 a consumer branches on.
+/// </summary>
+public sealed class ArrivalAlreadyScreenedException : DomainException
+{
+    public ArrivalAlreadyScreenedException(string dispatchNoteReference)
+        : base(
+            "arrival_already_screened",
+            $"Dispatch note {dispatchNoteReference} has already been screened.")
+    {
+        DispatchNoteReference = dispatchNoteReference;
+    }
+
+    /// <summary>Reference of the note already screened.</summary>
+    public string DispatchNoteReference { get; }
+}
+
 /// <summary>Raised when a referenced entity does not exist.</summary>
 public sealed class EntityNotFoundException : DomainException
 {
