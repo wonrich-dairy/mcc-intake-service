@@ -77,6 +77,12 @@ excludes generated EF migrations from the coverage figure.
 | `GET` | `/api/tanks` | The three chilling tanks with their running totals (SCRUM-52). |
 | `GET` | `/api/tanks/pourable` | Consignments accepted at the gate and not yet poured. |
 | `POST` | `/api/tanks/{code}/pours` | Pour an accepted consignment into a tank. |
+| `POST` | `/api/tanks` | Add a chilling tank (SCRUM-52). |
+| `PUT` | `/api/tanks/{code}` | Rename a tank and restate its working volume. |
+| `POST` | `/api/tanks/{code}/deactivate` | Take a tank out of service. Refused while it holds milk. |
+| `POST` | `/api/tanks/{code}/reactivate` | Put a tank back into service. |
+| `POST` | `/api/tanks/{code}/temperatures` | Record a temperature against a tank. |
+| `GET` | `/api/tanks/{code}/temperatures` | The readings taken against a tank, newest first. |
 | `GET` | `/api/tanks/{code}/manifest` | The tank's manifest; `date` filters the entries. |
 | `GET` | `/api/dispatch-notes` | Bowser dispatch notes; `date` filters by dispatch date (SCRUM-8). |
 | `GET` | `/api/dispatch-notes/{reference}` | One note, resolved to its contributing consignments. |
