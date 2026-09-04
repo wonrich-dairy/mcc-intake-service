@@ -23,13 +23,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container. Enums travel as their names so the API stays readable
 // and does not break when a new lifecycle state is inserted.
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("frontend", policy =>
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod());
-});
+// The SPA is served from another origin and calls this service directly (SCRUM-92).
+builder.Services.AddWonrichCors(builder.Configuration);
 
 builder.Services
     .AddControllers()
@@ -162,7 +157,8 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
-app.UseCors("frontend");
+// Ahead of authentication: a preflight carries no Authorization header.
+app.UseWonrichCors();
 
 // Auto-apply pending EF migrations in Development and Staging (SCRUM-36).
 // Guarded on the provider: the migrations are MySQL-specific, and the integration tests host this

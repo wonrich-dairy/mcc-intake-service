@@ -8,14 +8,8 @@ using Wonrich.AuthService.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("frontend", policy =>
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials());
-});
+// Sign-in is the first call the SPA makes, from its own origin (SCRUM-92).
+builder.Services.AddWonrichCors(builder.Configuration);
 
 builder.Services.AddControllers();
 
@@ -68,7 +62,8 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
-app.UseCors("frontend");
+// Ahead of authentication: a preflight carries no Authorization header.
+app.UseWonrichCors();
 
 if (!app.Environment.IsProduction())
 {
