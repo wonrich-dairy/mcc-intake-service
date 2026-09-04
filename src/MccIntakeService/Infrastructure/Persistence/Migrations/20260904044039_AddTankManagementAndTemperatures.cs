@@ -42,26 +42,7 @@ namespace MccIntakeService.Infrastructure.Persistence.Migrations
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
-            migrationBuilder.UpdateData(
-                table: "chilling_tanks",
-                keyColumn: "Id",
-                keyValue: new Guid("9a1c2b30-0001-4d5e-8f60-000000000001"),
-                columns: new string[0],
-                values: new object[0]);
 
-            migrationBuilder.UpdateData(
-                table: "chilling_tanks",
-                keyColumn: "Id",
-                keyValue: new Guid("9a1c2b30-0002-4d5e-8f60-000000000002"),
-                columns: new string[0],
-                values: new object[0]);
-
-            migrationBuilder.UpdateData(
-                table: "chilling_tanks",
-                keyColumn: "Id",
-                keyValue: new Guid("9a1c2b30-0003-4d5e-8f60-000000000003"),
-                columns: new string[0],
-                values: new object[0]);
 
             migrationBuilder.CreateIndex(
                 name: "ix_tank_temperature_readings_tank_time",
