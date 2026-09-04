@@ -163,6 +163,11 @@ public sealed class ConsignmentService : IConsignmentService
             consignments = consignments.Where(consignment => consignment.ArrivalDate <= toDate);
         }
 
+        if (query.Status is { } status)
+        {
+            consignments = consignments.Where(consignment => consignment.Status == status);
+        }
+
         var totalCount = await consignments.CountAsync(cancellationToken);
 
         var items = await consignments

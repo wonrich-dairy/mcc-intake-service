@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Wonrich.Auth;
 using Wonrich.Auth.Authorization;
@@ -37,6 +38,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
+builder.Services
+    .AddOptions<SeedOptions>()
+    .Bind(builder.Configuration.GetSection(SeedOptions.SectionName));
+
 builder.Services.AddProblemDetails();
 
 // This service both issues and validates tokens: it signs them here, and protects its own
@@ -67,6 +72,29 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 app.UseExceptionHandler();
+
+// Starter accounts for an environment whose user table is empty (SCRUM-45). Never in Production:
+// an account whose password is written in configuration is a development convenience, not a way
+// to open a real centre.
+if (!app.Environment.IsProduction())
+{
+    using var seedScope = app.Services.CreateScope();
+    var seedDb = seedScope.ServiceProvider.GetRequiredService<AuthDbContext>();
+    var seedOptions = seedScope.ServiceProvider.GetRequiredService<IOptions<SeedOptions>>().Value;
+
+    if (seedDb.Database.ProviderName?.Contains("MySql", StringComparison.OrdinalIgnoreCase) == true)
+    {
+        seedDb.Database.Migrate();
+    }
+
+    var seeded = await AuthDbSeeder.SeedAsync(seedDb, seedOptions);
+
+    if (seeded.Count > 0)
+    {
+        app.Logger.LogInformation(
+            "Seeded {Count} starter accounts: {Accounts}", seeded.Count, string.Join(", ", seeded));
+    }
+}
 
 app.UseCors("frontend");
 
