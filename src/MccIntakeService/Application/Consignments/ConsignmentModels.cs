@@ -31,6 +31,9 @@ public sealed record ConsignmentQuery
 
     public DateOnly? ToDate { get; init; }
 
+    /// <summary>Restrict to one lifecycle state: Registered, Accepted or Rejected.</summary>
+    public ConsignmentStatus? Status { get; init; }
+
     public int Page { get; init; } = 1;
 
     public int PageSize { get; init; } = 25;

@@ -3,6 +3,7 @@ using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Tanks;
 using MccIntakeService.Domain.Common;
+using MccIntakeService.Domain.Tanks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Wonrich.Auth.Tokens;
@@ -21,13 +22,43 @@ public sealed class PourRequest
     public string ConsignmentReference { get; set; } = string.Empty;
 }
 
+/// <summary>The details a tank is added or amended with (SCRUM-52).</summary>
+public sealed class SaveTankRequest
+{
+    /// <summary>Short tank code as painted on the plant. Set once, at creation.</summary>
+    /// <example>T4</example>
+    [Required(ErrorMessage = "A tank code is required.")]
+    [StringLength(10, MinimumLength = 1)]
+    public string Code { get; set; } = string.Empty;
+
+    /// <example>Chilling Tank 4</example>
+    [Required(ErrorMessage = "A tank name is required.")]
+    [StringLength(100, MinimumLength = 1)]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Working volume in litres.</summary>
+    /// <example>5000</example>
+    [Range(0.01, 1000000, ErrorMessage = "A tank's capacity must be greater than zero.")]
+    public decimal CapacityLitres { get; set; }
+}
+
+/// <summary>A temperature taken against a tank (SCRUM-52).</summary>
+public sealed class LogTemperatureRequest
+{
+    /// <example>3.8</example>
+    [Required(ErrorMessage = "A reading is required.")]
+    [Range(-5, 40, ErrorMessage = "A tank reading must be between -5 and 40 °C.")]
+    public decimal? Celsius { get; set; }
+}
+
 /// <summary>
 /// The centre's chilling tanks and their manifests (SCRUM-52), so a tank's contents can be traced
 /// back to the societies that supplied it.
 /// </summary>
 /// <remarks>
-/// The three tanks are plant rather than reference data, so they ship with the schema and there
-/// is no endpoint to add or remove one.
+/// A tank is never deleted. It is named on every pour and dispatch note it has carried, so
+/// removing the row would leave those records pointing at nothing; taking one out of service is
+/// what retiring a tank means.
 /// </remarks>
 [ApiController]
 [Route("api/tanks")]
@@ -125,6 +156,147 @@ public class TanksController : ControllerBase
                 exception.Code,
                 "Not found",
                 exception.Message);
+        }
+    }
+
+    /// <summary>Adds a tank to the centre.</summary>
+    /// <response code="201">The tank was added.</response>
+    /// <response code="400">The code, name or capacity is missing or out of range.</response>
+    /// <response code="409">A tank already carries that code.</response>
+    [HttpPost]
+    [Authorize(Policy = IntakePolicies.ManageTanks)]
+    [ProducesResponseType(typeof(TankView), StatusCodes.Status201Created, "application/json")]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status409Conflict, ProblemJson)]
+    public async Task<ActionResult<TankView>> Create(
+        [FromBody] SaveTankRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tank = await _tanks.CreateAsync(
+            new SaveTankCommand(request.Code, request.Name, request.CapacityLitres),
+            cancellationToken);
+
+        return CreatedAtAction(nameof(Manifest), new { code = tank.Code }, tank);
+    }
+
+    /// <summary>Renames a tank and restates its working volume.</summary>
+    /// <remarks>
+    /// The code is not amendable: it is painted on the plant and named on every pour and dispatch
+    /// note the tank has carried.
+    /// </remarks>
+    /// <response code="200">The tank was amended.</response>
+    /// <response code="400">The name or capacity is missing or out of range.</response>
+    /// <response code="404">No such tank.</response>
+    [HttpPut("{code}")]
+    [Authorize(Policy = IntakePolicies.ManageTanks)]
+    [ProducesResponseType(typeof(TankView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
+    public async Task<ActionResult<TankView>> Update(
+        string code,
+        [FromBody] SaveTankRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _tanks.UpdateAsync(
+                code,
+                new SaveTankCommand(code, request.Name, request.CapacityLitres),
+                cancellationToken));
+        }
+        catch (EntityNotFoundException)
+        {
+            return NotFoundProblem(code);
+        }
+    }
+
+    /// <summary>Takes a tank out of service.</summary>
+    /// <remarks>A tank still holding milk cannot be taken out: dispatch the load first.</remarks>
+    /// <response code="200">The tank is out of service.</response>
+    /// <response code="400">The tank still holds milk.</response>
+    /// <response code="404">No such tank.</response>
+    [HttpPost("{code}/deactivate")]
+    [Authorize(Policy = IntakePolicies.ManageTanks)]
+    [ProducesResponseType(typeof(TankView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
+    public Task<ActionResult<TankView>> Deactivate(string code, CancellationToken cancellationToken) =>
+        ChangeStatus(code, TankStatus.UnderMaintenance, cancellationToken);
+
+    /// <summary>Puts a tank back into service.</summary>
+    /// <response code="200">The tank is in service.</response>
+    /// <response code="404">No such tank.</response>
+    [HttpPost("{code}/reactivate")]
+    [Authorize(Policy = IntakePolicies.ManageTanks)]
+    [ProducesResponseType(typeof(TankView), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
+    public Task<ActionResult<TankView>> Reactivate(string code, CancellationToken cancellationToken) =>
+        ChangeStatus(code, TankStatus.Active, cancellationToken);
+
+    /// <summary>Records a temperature against a tank.</summary>
+    /// <remarks>
+    /// Chilled milk is held at a temperature, and the reading is evidence the cold chain held. A
+    /// reading is never amended once taken; a correction is another reading.
+    /// </remarks>
+    /// <response code="201">The reading was recorded.</response>
+    /// <response code="400">The reading is missing or outside the range an instrument reports.</response>
+    /// <response code="404">No such tank.</response>
+    [HttpPost("{code}/temperatures")]
+    [ProducesResponseType(typeof(TankTemperatureView), StatusCodes.Status201Created, "application/json")]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest, ProblemJson)]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
+    public async Task<ActionResult<TankTemperatureView>> LogTemperature(
+        string code,
+        [FromBody] LogTemperatureRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var reading = await _tanks.RecordTemperatureAsync(
+                code,
+                request.Celsius!.Value,
+                User.OfficerIdentity(),
+                cancellationToken);
+
+            return CreatedAtAction(nameof(Temperatures), new { code }, reading);
+        }
+        catch (EntityNotFoundException)
+        {
+            return NotFoundProblem(code);
+        }
+    }
+
+    /// <summary>The readings taken against a tank, newest first.</summary>
+    /// <param name="code">Tank code.</param>
+    /// <param name="limit">How many readings to return, capped at 200.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <response code="200">The readings.</response>
+    /// <response code="404">No such tank.</response>
+    [HttpGet("{code}/temperatures")]
+    [ProducesResponseType(typeof(IReadOnlyList<TankTemperatureView>), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(IntakeProblemDetails), StatusCodes.Status404NotFound, ProblemJson)]
+    public async Task<ActionResult<IReadOnlyList<TankTemperatureView>>> Temperatures(
+        string code,
+        CancellationToken cancellationToken,
+        [FromQuery] int limit = 20)
+    {
+        var readings = await _tanks.TemperaturesAsync(code, limit, cancellationToken);
+
+        return readings is null ? NotFoundProblem(code) : Ok(readings);
+    }
+
+    private async Task<ActionResult<TankView>> ChangeStatus(
+        string code,
+        TankStatus status,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _tanks.ChangeStatusAsync(code, status, cancellationToken));
+        }
+        catch (EntityNotFoundException)
+        {
+            return NotFoundProblem(code);
         }
     }
 

@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Wonrich.Auth.Tokens;
@@ -30,11 +30,26 @@ public sealed class RefreshRequest
 /// <param name="ExpiresAtUtc">When the access token stops being accepted.</param>
 /// <param name="RefreshToken">Single-use token that buys a new access token.</param>
 /// <param name="RefreshExpiresAtUtc">When the refresh token stops being accepted.</param>
+/// <param name="AccessToken">Bearer token every Wonrich service validates.</param>
+/// <param name="ExpiresAtUtc">When the access token stops being accepted.</param>
+/// <param name="RefreshToken">Single-use token that buys a fresh pair.</param>
+/// <param name="RefreshExpiresAtUtc">When the refresh token stops being accepted.</param>
+/// <param name="UserName">Sign-in name of the user the tokens belong to.</param>
+/// <param name="DisplayName">
+/// The name a person is called. A client has to greet the officer by name, and reading it off the
+/// token would mean decoding a JWT to render a heading.
+/// </param>
+/// <param name="Role">The single role the user holds (SCRUM-45).</param>
+/// <param name="Facility">Centre or factory the user operates at.</param>
 public sealed record TokenResponse(
     string AccessToken,
     DateTime ExpiresAtUtc,
     string RefreshToken,
-    DateTime RefreshExpiresAtUtc);
+    DateTime RefreshExpiresAtUtc,
+    string UserName,
+    string DisplayName,
+    string Role,
+    string? Facility);
 
 /// <summary>
 /// Sign-in and token renewal for every Wonrich service (SCRUM-34). Tokens issued here are
@@ -109,12 +124,17 @@ public class AuthController : ControllerBase
         }
 
         var tokens = result.Tokens!;
+        var user = result.User!;
 
         return Ok(new TokenResponse(
             tokens.AccessToken,
             tokens.ExpiresAtUtc,
             tokens.RefreshToken,
-            tokens.RefreshExpiresAtUtc));
+            tokens.RefreshExpiresAtUtc,
+            user.UserName,
+            user.DisplayName,
+            user.Role,
+            user.Facility));
     }
 
     /// <summary>Where the attempt came from, for the failed-attempt log.</summary>
