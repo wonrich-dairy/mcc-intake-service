@@ -34,6 +34,10 @@ internal sealed class IntakeApiFactory : WebApplicationFactory<Program>
 
     private const string TestAudience = "wonrich-services-tests";
 
+    /// <summary>The one browser origin the hosted service is configured to accept (SCRUM-92).</summary>
+    public const string AllowedTestOrigin = "http://localhost:5173";
+
+
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
     /// <summary>The clock the hosted application uses; move it to test cutoff behaviour over HTTP.</summary>
@@ -46,6 +50,8 @@ internal sealed class IntakeApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Auth:SigningKey", TestSigningKey);
         builder.UseSetting("Auth:Issuer", TestIssuer);
         builder.UseSetting("Auth:Audience", TestAudience);
+
+        builder.UseSetting("Cors:AllowedOrigins:0", AllowedTestOrigin);
 
         builder.ConfigureServices(services =>
         {

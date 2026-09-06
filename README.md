@@ -53,6 +53,7 @@ excludes generated EF migrations from the coverage figure.
 | `Intake:DailyCutoff` | `16:00` | Local time after which milk is no longer accepted. |
 | `Intake:TimeZone` | `Asia/Colombo` | Zone the centre's wall clock and intake dates run on. |
 | `Intake:MilkDensityKgPerLitre` | `1.03` | Density used to derive litres from the weight recorded at the gate. |
+| `Cors:AllowedOrigins` | *(empty)* | Browser origins the SPA is served from. Empty allows none, so an environment that has not been told about its client refuses every preflight. |
 | `Auth:Issuer` | `wonrich-auth` | Issuer stamped on tokens and required by every validator. |
 | `Auth:Audience` | `wonrich-services` | Audience all four services accept. |
 | `Auth:SigningKey` | *(empty)* | Symmetric signing key, at least 32 characters. Supplied per environment; never committed. |
