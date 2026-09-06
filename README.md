@@ -23,12 +23,25 @@ cd mcc-intake-service
 dotnet restore
 dotnet tool restore
 
-# Point the service at a database, then create the schema
+# Point each service at a database, then create the schema
 copy src\MccIntakeService\appsettings.Development.template.json src\MccIntakeService\appsettings.Development.json
+copy src\Wonrich.AuthService\appsettings.Development.template.json src\Wonrich.AuthService\appsettings.Development.json
 dotnet dotnet-ef database update --project src\MccIntakeService
 
+# The auth service applies its own migrations on startup outside Production
+dotnet run --project src\Wonrich.AuthService
 dotnet run --project src\MccIntakeService
 ```
+The auth service keeps its own database, `wonrich_auth`, so user credentials do not sit in a schema
+every other service's connection string can already reach (SCRUM-34). `docker/mysql-init/` creates
+it and grants `mcc_user` on it when the MySQL data volume is first initialised. A volume created
+before that script existed will not have it, so recreate it once:
+```powershell
+docker-compose down -v
+docker-compose up --build
+```
+`Auth:SigningKey`, `Auth:Issuer` and `Auth:Audience` must match across both services, or a token one
+issues is rejected by the other as a bad signature.
 Swagger UI is served at `/swagger` in every environment except Production. Every route requires a
 token, so paste one from `POST /api/auth/login` into **Authorize** before trying an endpoint.
 

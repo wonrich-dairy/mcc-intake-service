@@ -28,6 +28,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-DevPassword123!}
     volumes:
       - mcc-intake-data:/var/lib/mysql
+      # Creates wonrich_auth and grants mcc_user on it. The image runs these once, when the
+      # data volume is first initialised, so an existing volume must be recreated to pick it up.
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # -h 127.0.0.1 forces a TCP probe. "-h localhost" uses the Unix
       # socket, which can report healthy before port 3306 accepts
