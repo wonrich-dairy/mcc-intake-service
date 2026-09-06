@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Wonrich.Auth.Tokens;
 using Wonrich.AuthService.Domain;
@@ -22,13 +22,20 @@ public enum AuthFailure
 /// <summary>Outcome of a sign-in or refresh.</summary>
 /// <param name="Tokens">The issued tokens when the attempt succeeded.</param>
 /// <param name="Failure">Why the attempt was refused, when it was.</param>
-public sealed record AuthResult(IssuedTokens? Tokens, AuthFailure? Failure)
+/// <summary>Who the signed-in user is, for a client that has to name them on screen.</summary>
+/// <param name="UserName">Sign-in name.</param>
+/// <param name="DisplayName">The name a person is called, as an officer would read it.</param>
+/// <param name="Role">The single role the user holds (SCRUM-45).</param>
+/// <param name="Facility">Centre or factory the user operates at.</param>
+public sealed record SignedInUser(string UserName, string DisplayName, string Role, string? Facility);
+
+public sealed record AuthResult(IssuedTokens? Tokens, SignedInUser? User, AuthFailure? Failure)
 {
     public bool Succeeded => Tokens is not null;
 
-    public static AuthResult Success(IssuedTokens tokens) => new(tokens, null);
+    public static AuthResult Success(IssuedTokens tokens, SignedInUser user) => new(tokens, user, null);
 
-    public static AuthResult Refused(AuthFailure failure) => new(null, failure);
+    public static AuthResult Refused(AuthFailure failure) => new(null, null, failure);
 }
 
 /// <summary>Issues and renews tokens for Wonrich users (SCRUM-34).</summary>
@@ -97,7 +104,7 @@ public sealed class AuthenticationService : IAuthenticationService
             return AuthResult.Refused(AuthFailure.InvalidCredentials);
         }
 
-        return AuthResult.Success(await IssueForAsync(user, cancellationToken));
+        return AuthResult.Success(await IssueForAsync(user, cancellationToken), Describe(user));
     }
 
     public async Task<AuthResult> RefreshAsync(
@@ -126,8 +133,11 @@ public sealed class AuthenticationService : IAuthenticationService
         // copy stops working the moment the real user refreshes.
         stored.Revoke(nowUtc);
 
-        return AuthResult.Success(await IssueForAsync(stored.User, cancellationToken));
+        return AuthResult.Success(await IssueForAsync(stored.User, cancellationToken), Describe(stored.User));
     }
+
+    private static SignedInUser Describe(UserAccount user) =>
+        new(user.UserName, user.DisplayName, user.Role, user.Facility);
 
     private async Task<IssuedTokens> IssueForAsync(UserAccount user, CancellationToken cancellationToken)
     {

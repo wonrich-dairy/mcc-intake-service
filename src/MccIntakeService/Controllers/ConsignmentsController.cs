@@ -1,6 +1,7 @@
 ﻿using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Consignments;
+using MccIntakeService.Domain.Consignments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -105,6 +106,7 @@ public class ConsignmentsController : ControllerBase
     /// <param name="date">Filter to a single intake date.</param>
     /// <param name="from">Start of an intake date range, inclusive.</param>
     /// <param name="to">End of an intake date range, inclusive.</param>
+    /// <param name="status">Restrict to one lifecycle state: Registered, Accepted or Rejected.</param>
     /// <param name="page">1-based page number.</param>
     /// <param name="pageSize">Page size, capped at 200.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -118,6 +120,7 @@ public class ConsignmentsController : ControllerBase
         [FromQuery] DateOnly? date,
         [FromQuery] DateOnly? from,
         [FromQuery] DateOnly? to,
+        [FromQuery] ConsignmentStatus? status,
         CancellationToken cancellationToken,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25)
@@ -130,6 +133,7 @@ public class ConsignmentsController : ControllerBase
             ArrivalDate = date,
             FromDate = from,
             ToDate = to,
+            Status = status,
             Page = page,
             PageSize = pageSize
         };

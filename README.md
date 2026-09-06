@@ -58,6 +58,9 @@ excludes generated EF migrations from the coverage figure.
 | `Auth:SigningKey` | *(empty)* | Symmetric signing key, at least 32 characters. Supplied per environment; never committed. |
 | `Auth:AccessTokenMinutes` | `60` | Access token lifetime. |
 | `Auth:RefreshTokenDays` | `7` | Refresh token lifetime. |
+| `Seed:Enabled` | `false` | Create one starter account per role when the user table is empty. Never runs in Production. |
+| `Seed:Password` | *(empty)* | Password the starter accounts are created with. Seeding is skipped while this is empty. |
+| `Seed:Facility` | `MCC-KANDY` | Facility stamped on the starter accounts. |
 | `QualityThresholds:MinimumFatPercent` | `3.5` | Lowest acceptable fat percentage. |
 | `QualityThresholds:MinimumSnf` | `8.5` | Lowest acceptable solids-not-fat. |
 | `QualityThresholds:MinimumCorrectedClr` | `26.0` | Lowest acceptable corrected CLR. |
@@ -70,7 +73,7 @@ excludes generated EF migrations from the coverage figure.
 | --- | --- | --- |
 | `POST` | `/api/consignments` | Register an arriving society consignment (SCRUM-6). |
 | `GET` | `/api/consignments/{reference}` | Fetch one consignment by its `MCC-YYYYMMDD-SOCIETY-NN` reference. |
-| `GET` | `/api/consignments` | List consignments filtered by society, date, date range or reference. |
+| `GET` | `/api/consignments` | List consignments filtered by society, date, date range, reference or `status`. |
 | `POST` | `/api/consignments/{reference}/quality-test/preview` | Derive CLR, SNF and TS and highlight breaches before submitting (SCRUM-7). |
 | `POST` | `/api/consignments/{reference}/quality-test` | Record the panel and settle the verdict. |
 | `GET` | `/api/consignments/{reference}/quality-test` | Read back the recorded panel. |

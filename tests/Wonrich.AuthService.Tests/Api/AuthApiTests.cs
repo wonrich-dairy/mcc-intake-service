@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Wonrich.Auth.Authorization;
 using Wonrich.AuthService.Controllers;
 using Wonrich.AuthService.Tests.Support;
 
@@ -35,6 +36,38 @@ public class AuthApiTests
         Assert.NotEmpty(tokens.RefreshToken);
         Assert.True(tokens.ExpiresAtUtc > DateTime.UtcNow);
         Assert.True(tokens.RefreshExpiresAtUtc > tokens.ExpiresAtUtc);
+    }
+
+    [Fact]
+    public async Task Signing_in_names_the_user_so_a_client_need_not_decode_the_token()
+    {
+        using var factory = new AuthApiFactory();
+
+        var tokens = await SignInAsync(factory.CreateClient());
+
+        Assert.Equal("k.perera", tokens.UserName);
+        Assert.Equal("Kamal Perera", tokens.DisplayName);
+        Assert.Equal(WonrichRoles.MccManager, tokens.Role);
+        Assert.Equal("MCC-KANDY", tokens.Facility);
+    }
+
+    [Fact]
+    public async Task A_renewed_token_still_names_the_user()
+    {
+        using var factory = new AuthApiFactory();
+        var client = factory.CreateClient();
+        var first = await SignInAsync(client);
+
+        var response = await client.PostAsJsonAsync("/api/auth/refresh", new
+        {
+            refreshToken = first.RefreshToken
+        });
+
+        response.EnsureSuccessStatusCode();
+        var renewed = (await response.Content.ReadFromJsonAsync<TokenResponse>(JsonOptions))!;
+
+        Assert.Equal("Kamal Perera", renewed.DisplayName);
+        Assert.Equal(WonrichRoles.MccManager, renewed.Role);
     }
 
     [Fact]
