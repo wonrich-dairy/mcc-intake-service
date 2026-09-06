@@ -32,7 +32,23 @@ public sealed record TankView(
     decimal AvailableQuantityLitres,
     int ConsignmentCount,
     int FillNumber,
-    DateTime? LastClosedAtUtc);
+    DateTime? LastClosedAtUtc,
+    TankStatus Status,
+    TankTemperatureView? LatestTemperature);
+
+/// <summary>One temperature taken against a tank (SCRUM-52).</summary>
+/// <param name="Celsius">The reading.</param>
+/// <param name="RecordedBy">Who took it.</param>
+/// <param name="RecordedAtUtc">When it was taken.</param>
+/// <param name="FillNumber">The fill the tank was on at the time.</param>
+public sealed record TankTemperatureView(
+    decimal Celsius,
+    string? RecordedBy,
+    DateTime RecordedAtUtc,
+    int FillNumber);
+
+/// <summary>The details a tank is created or amended with (SCRUM-52).</summary>
+public sealed record SaveTankCommand(string Code, string Name, decimal CapacityLitres);
 
 /// <summary>One consignment on a tank's manifest.</summary>
 /// <param name="ConsignmentReference">The consignment's gate reference.</param>
@@ -93,6 +109,34 @@ public interface ITankService
     Task<TankManifestView?> ManifestAsync(
         string tankCode,
         DateOnly? pourDate = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Adds a tank to the centre.</summary>
+    Task<TankView> CreateAsync(SaveTankCommand command, CancellationToken cancellationToken = default);
+
+    /// <summary>Renames a tank and restates its working volume.</summary>
+    Task<TankView> UpdateAsync(
+        string tankCode,
+        SaveTankCommand command,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Takes a tank out of service, or puts it back.</summary>
+    Task<TankView> ChangeStatusAsync(
+        string tankCode,
+        TankStatus status,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Records a temperature against a tank.</summary>
+    Task<TankTemperatureView> RecordTemperatureAsync(
+        string tankCode,
+        decimal celsius,
+        string? recordedBy,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>The readings taken against a tank, newest first.</summary>
+    Task<IReadOnlyList<TankTemperatureView>?> TemperaturesAsync(
+        string tankCode,
+        int limit = 20,
         CancellationToken cancellationToken = default);
 }
 
@@ -226,6 +270,118 @@ public sealed class TankService : ITankService
                 pour.FillNumber)).ToList());
     }
 
+    public async Task<TankView> CreateAsync(
+        SaveTankCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var code = command.Code?.Trim().ToUpperInvariant() ?? string.Empty;
+
+        if (await _dbContext.ChillingTanks.AnyAsync(tank => tank.Code == code, cancellationToken))
+        {
+            throw new DuplicateCodeException("ChillingTank", code);
+        }
+
+        var tank = new ChillingTank(Guid.NewGuid(), code, command.Name, command.CapacityLitres);
+
+        _dbContext.ChillingTanks.Add(tank);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return await ToViewAsync(tank, cancellationToken);
+    }
+
+    public async Task<TankView> UpdateAsync(
+        string tankCode,
+        SaveTankCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var tank = await FindTankAsync(tankCode, cancellationToken)
+            ?? throw new EntityNotFoundException("ChillingTank", tankCode);
+
+        // The code is painted on the plant and named on every pour and dispatch note the tank has
+        // ever carried, so it is not something a rename may change.
+        tank.Describe(command.Name, command.CapacityLitres);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return await ToViewAsync(tank, cancellationToken);
+    }
+
+    public async Task<TankView> ChangeStatusAsync(
+        string tankCode,
+        TankStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        var tank = await FindTankAsync(tankCode, cancellationToken)
+            ?? throw new EntityNotFoundException("ChillingTank", tankCode);
+
+        var view = await ToViewAsync(tank, cancellationToken);
+
+        tank.ChangeStatus(status, view.AvailableQuantityLitres);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return await ToViewAsync(tank, cancellationToken);
+    }
+
+    public async Task<TankTemperatureView> RecordTemperatureAsync(
+        string tankCode,
+        decimal celsius,
+        string? recordedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var tank = await FindTankAsync(tankCode, cancellationToken)
+            ?? throw new EntityNotFoundException("ChillingTank", tankCode);
+
+        var recordedAtUtc = _clock.UtcNow;
+
+        var reading = TankTemperatureReading.Record(
+            Guid.NewGuid(),
+            tank,
+            celsius,
+            recordedBy,
+            recordedAtUtc,
+            _clock.ToLocal(recordedAtUtc));
+
+        _dbContext.TankTemperatureReadings.Add(reading);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new TankTemperatureView(
+            reading.Celsius,
+            reading.RecordedBy,
+            reading.RecordedAtUtc,
+            reading.FillNumber);
+    }
+
+    public async Task<IReadOnlyList<TankTemperatureView>?> TemperaturesAsync(
+        string tankCode,
+        int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var tank = await FindTankAsync(tankCode, cancellationToken);
+
+        if (tank is null)
+        {
+            return null;
+        }
+
+        return await ReadingsFor(tank.Id).Take(Math.Clamp(limit, 1, 200)).ToListAsync(cancellationToken);
+    }
+
+    private IQueryable<TankTemperatureView> ReadingsFor(Guid tankId) =>
+        _dbContext.TankTemperatureReadings
+            .AsNoTracking()
+            .Where(reading => reading.TankId == tankId)
+            .OrderByDescending(reading => reading.RecordedAtUtc)
+            .Select(reading => new TankTemperatureView(
+                reading.Celsius,
+                reading.RecordedBy,
+                reading.RecordedAtUtc,
+                reading.FillNumber));
+
     private async Task<ChillingTank?> FindTankAsync(string tankCode, CancellationToken cancellationToken)
     {
         var code = tankCode?.Trim().ToUpperInvariant() ?? string.Empty;
@@ -260,6 +416,8 @@ public sealed class TankService : ITankService
 
         var poured = totals?.Litres ?? 0m;
 
+        var latest = await ReadingsFor(tank.Id).FirstOrDefaultAsync(cancellationToken);
+
         return new TankView(
             tank.Code,
             tank.Name,
@@ -269,6 +427,8 @@ public sealed class TankService : ITankService
             poured - dispatched,
             totals?.Count ?? 0,
             tank.FillNumber,
-            tank.LastClosedAtUtc);
+            tank.LastClosedAtUtc,
+            tank.Status,
+            latest);
     }
 }

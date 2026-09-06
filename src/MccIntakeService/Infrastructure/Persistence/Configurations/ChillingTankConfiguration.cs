@@ -31,6 +31,12 @@ public sealed class ChillingTankConfiguration : IEntityTypeConfiguration<Chillin
 
         builder.Property(tank => tank.LastClosedAtUtc);
 
+        // Tanks that predate tank management are in service.
+        builder.Property(tank => tank.Status)
+            .HasConversion<int>()
+            .HasDefaultValue(TankStatus.Active)
+            .IsRequired();
+
         builder.HasIndex(tank => tank.Code)
             .IsUnique()
             .HasDatabaseName("ux_chilling_tanks_code");
@@ -76,5 +82,31 @@ public sealed class TankPourConfiguration : IEntityTypeConfiguration<TankPour>
             .WithOne()
             .HasForeignKey<TankPour>(pour => pour.ConsignmentId)
             .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public sealed class TankTemperatureReadingConfiguration : IEntityTypeConfiguration<TankTemperatureReading>
+{
+    public void Configure(EntityTypeBuilder<TankTemperatureReading> builder)
+    {
+        builder.ToTable("tank_temperature_readings");
+
+        builder.HasKey(reading => reading.Id);
+
+        builder.Property(reading => reading.Celsius).HasPrecision(5, 2).IsRequired();
+        builder.Property(reading => reading.FillNumber).HasDefaultValue(1).IsRequired();
+        builder.Property(reading => reading.RecordedBy).HasMaxLength(100);
+        builder.Property(reading => reading.RecordedAtUtc).IsRequired();
+        builder.Property(reading => reading.ReadingDate).IsRequired();
+
+        builder.HasOne(reading => reading.Tank)
+            .WithMany(tank => tank.TemperatureReadings)
+            .HasForeignKey(reading => reading.TankId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // The readings are read back newest first for one tank, which is the only way they are
+        // ever queried.
+        builder.HasIndex(reading => new { reading.TankId, reading.RecordedAtUtc })
+            .HasDatabaseName("ix_tank_temperature_readings_tank_time");
     }
 }

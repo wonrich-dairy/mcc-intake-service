@@ -97,6 +97,12 @@ builder.Services.AddWonrichAuthorization(policies => policies
         WonrichRoles.IntakeOfficer,
         WonrichRoles.QualityAnalyst)
     .Add(
+        // Tanks are plant. Adding one or taking it out of service is the manager's call, not the
+        // gate officer's, who may still pour into the ones that are there.
+        IntakePolicies.ManageTanks,
+        WonrichRoles.SystemAdministrator,
+        WonrichRoles.MccManager)
+    .Add(
         IntakePolicies.PourToTanks,
         WonrichRoles.SystemAdministrator,
         WonrichRoles.MccManager,

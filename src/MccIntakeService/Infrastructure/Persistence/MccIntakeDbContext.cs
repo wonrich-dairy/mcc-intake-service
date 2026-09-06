@@ -32,6 +32,9 @@ public class MccIntakeDbContext : DbContext
     /// <summary>Accepted consignments poured into tanks (SCRUM-52).</summary>
     public DbSet<TankPour> TankPours => Set<TankPour>();
 
+    /// <summary>Temperature readings taken against the chilling tanks (SCRUM-52).</summary>
+    public DbSet<TankTemperatureReading> TankTemperatureReadings => Set<TankTemperatureReading>();
+
     /// <summary>Bowser dispatch notes (SCRUM-8).</summary>
     public DbSet<DispatchNote> DispatchNotes => Set<DispatchNote>();
 
