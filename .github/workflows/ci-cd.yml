@@ -102,6 +102,7 @@ jobs:
           app-name: app-mcc-intake-staging
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_STAGING }}
           package: ./publish
+          type: ZIP
 
   # ── Deploy to Production (manual approval required) ──
   deploy-production:
@@ -128,3 +129,4 @@ jobs:
           app-name: app-mcc-intake-prod
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_PROD }}
           package: ./publish
+          type: ZIP
