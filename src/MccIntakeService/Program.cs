@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Application.Consignments;
@@ -198,6 +198,22 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// The service is an API with no page of its own, so opening the site address in a browser used to
+// answer a bare 404 and the app looked undeployed. Outside Production the root opens the Swagger UI;
+// in Production, where Swagger is off, it answers a small status document instead.
+if (!app.Environment.IsProduction())
+{
+    app.MapGet("/", () => Results.Redirect("/swagger"))
+        .AllowAnonymous()
+        .ExcludeFromDescription();
+}
+else
+{
+    app.MapGet("/", () => Results.Ok(new { service = "MCC & Intake Service", status = "running" }))
+        .AllowAnonymous()
+        .ExcludeFromDescription();
+}
 
 app.Run();
 
