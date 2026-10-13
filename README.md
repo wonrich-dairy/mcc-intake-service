@@ -229,6 +229,15 @@ Anything that cannot be resolved upstream is listed explicitly under `missing` r
 blank, so a gap never reads as a clean result. A society with no gate results ranks *last*, not
 first — unknown is not the same as safe, and the missing entries are what flag it.
 
+**Consumed by Traceability (SCRUM-132).** The Traceability service signs in as a service account
+holding a `TraceBatches` role and calls two routes: `GET /api/factory/batches/{reference}/trace`,
+and `GET /api/factory/batches/by-dispatch-note/{dispatchNote}`, a read-only copy of the
+`?dispatchNote=` list under the trace policy so the account needs no factory intake role. It caches
+each trace exactly as sent, so the record shapes, the `entity_not_found` 404, newest-first listing,
+tank order (by code, ordinal) and consignment order (as poured), and the `…Local` / `…Utc` split are
+all contract. `TraceabilityContractTests` pins each one: if it fails, tell Traceability before
+merging.
+
 ### Offline sync
 `POST /api/sync` takes an officer's queue of records captured without a network — registrations,
 gate panels and pours — and applies them in the order they were created (SCRUM-10).
