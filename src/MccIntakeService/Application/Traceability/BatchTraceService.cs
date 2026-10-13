@@ -141,7 +141,9 @@ public sealed class BatchTraceService : IBatchTraceService
 
         var tanks = new List<TracedTankView>();
 
-        foreach (var source in note.Sources.OrderBy(source => source.Tank?.Code))
+        // The order is part of the contract: Traceability stores tanks and consignments exactly as
+        // sent (SCRUM-132). Ordinal, so it cannot shift with the host's culture.
+        foreach (var source in note.Sources.OrderBy(source => source.Tank?.Code, StringComparer.Ordinal))
         {
             tanks.Add(await TraceTankAsync(source.TankId, source.FillNumber, source.Tank?.Code,
                 source.Tank?.Name, source.QuantityLitres, cancellationToken));
@@ -197,6 +199,7 @@ public sealed class BatchTraceService : IBatchTraceService
             .Include(pour => pour.Consignment)!
                 .ThenInclude(consignment => consignment!.Cans)
             .OrderBy(pour => pour.PouredAtUtc)
+            .ThenBy(pour => pour.Consignment!.Reference)
             .ToListAsync(cancellationToken);
 
         if (pours.Count == 0)

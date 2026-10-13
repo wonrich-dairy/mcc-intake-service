@@ -18,7 +18,8 @@ public class BatchTraceApiTests
     };
 
     /// <summary>Runs the whole chain and returns the batch reference.</summary>
-    private static async Task<string> BatchAsync(IntakeApiFactory factory, params (string Tank, int Society)[] pours)
+    /// <remarks>Each pour lands a minute after the last, so pour order is visible in the trace.</remarks>
+    internal static async Task<string> BatchAsync(IntakeApiFactory factory, params (string Tank, int Society)[] pours)
     {
         var officer = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
         var societies = await officer.GetFromJsonAsync<List<SocietyView>>("/api/societies", JsonOptions);
@@ -49,6 +50,8 @@ public class BatchTraceApiTests
             {
                 consignmentReference = reference
             })).EnsureSuccessStatusCode();
+
+            factory.Clock.LocalNow = factory.Clock.LocalNow.AddMinutes(1);
         }
 
         var manager = factory.CreateClientAs(WonrichRoles.MccManager);

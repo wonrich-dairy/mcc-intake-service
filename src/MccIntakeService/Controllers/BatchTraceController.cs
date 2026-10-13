@@ -1,5 +1,6 @@
 ﻿using MccIntakeService.Api.Contracts;
 using MccIntakeService.Api.Infrastructure;
+using MccIntakeService.Application.Factory;
 using MccIntakeService.Application.Traceability;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -33,11 +34,28 @@ public class BatchTraceController : ControllerBase
     private const string ProblemJson = "application/problem+json";
 
     private readonly IBatchTraceService _trace;
+    private readonly IFactoryIntakeService _factory;
 
-    public BatchTraceController(IBatchTraceService trace)
+    public BatchTraceController(IBatchTraceService trace, IFactoryIntakeService factory)
     {
         _trace = trace;
+        _factory = factory;
     }
+
+    /// <summary>Finds the batch made from one dispatch note, so a caller holding only the note can trace it.</summary>
+    /// <remarks>
+    /// A read-only copy of <c>GET /api/factory/batches?dispatchNote=</c> under the trace policy
+    /// (SCRUM-132). The Traceability service knows a batch only by its dispatch note, and this lets
+    /// its service account resolve the reference without holding factory intake permissions. The
+    /// response has the list endpoint's shape: empty for an unknown or unscreened note, newest first.
+    /// </remarks>
+    /// <response code="200">The batches made from that note — at most one, as a note is screened once.</response>
+    [HttpGet("by-dispatch-note/{dispatchNoteReference}")]
+    [ProducesResponseType(typeof(IReadOnlyList<BatchView>), StatusCodes.Status200OK, "application/json")]
+    public async Task<ActionResult<IReadOnlyList<BatchView>>> FindByDispatchNote(
+        string dispatchNoteReference,
+        CancellationToken cancellationToken) =>
+        Ok(await _factory.ListBatchesAsync(dispatchNoteReference: dispatchNoteReference, cancellationToken: cancellationToken));
 
     /// <summary>
     /// Resolves a batch to the dispatch note, the tanks it drew from and every consignment in
