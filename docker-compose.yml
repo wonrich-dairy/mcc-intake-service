@@ -10,6 +10,12 @@ services:
       # Port 3306 = MySQL's port INSIDE the compose network.
       # The host-side mapping below (3307 by default) is irrelevant here.
       - ConnectionStrings__DefaultConnection=Server=mcc-intake-db;Port=3306;Database=mcc_intake;User=mcc_user;Password=${MYSQL_PASSWORD:-DevPassword123!}
+      # Token validation (SCRUM-34). The service refuses to start without a signing key of at least
+      # 32 characters, and it must match the auth service's or every token is rejected as a bad
+      # signature. The default is for a local stack only; .env overrides it.
+      - Auth__Issuer=${AUTH_ISSUER:-wonrich-auth}
+      - Auth__Audience=${AUTH_AUDIENCE:-wonrich-services}
+      - Auth__SigningKey=${AUTH_SIGNING_KEY:-local-development-signing-key-not-for-any-real-environment-0123456789}
     depends_on:
       mcc-intake-db:
         condition: service_healthy
