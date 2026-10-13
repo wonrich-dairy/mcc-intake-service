@@ -161,6 +161,9 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// First, so every later log line carries the correlation ID — the exception handler's included.
+app.UseCorrelationId();
+
 app.UseExceptionHandler();
 
 // Ahead of authentication: a preflight carries no Authorization header.
