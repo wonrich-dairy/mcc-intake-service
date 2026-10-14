@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using MccIntakeService.Api.Infrastructure;
+using MccIntakeService.Api.Infrastructure.Observability;
 using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.Dispatch;
@@ -13,6 +14,7 @@ using MccIntakeService.Configuration;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using Prometheus;
 using Wonrich.Auth;
 using Wonrich.Auth.Authorization;
 using Wonrich.QualityPanel;
@@ -164,6 +166,9 @@ var app = builder.Build();
 // First, so every later log line carries the correlation ID — the exception handler's included.
 app.UseCorrelationId();
 
+// Outside the exception handler, so a request that throws is counted with the 500 it answers.
+app.UseRequestMetrics();
+
 app.UseExceptionHandler();
 
 // Ahead of authentication: a preflight carries no Authorization header.
@@ -201,6 +206,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Prometheus scrape endpoint, anonymous so Prometheus needs no token. Operational, so kept out of
+// the API's Swagger document.
+app.MapMetrics().AllowAnonymous();
 
 // The service is an API with no page of its own, so opening the site address in a browser used to
 // answer a bare 404 and the app looked undeployed. Outside Production the root opens the Swagger UI;
