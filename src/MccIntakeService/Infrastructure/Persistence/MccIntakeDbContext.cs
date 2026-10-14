@@ -1,6 +1,7 @@
 ﻿using MccIntakeService.Domain.Consignments;
 using MccIntakeService.Domain.Dispatch;
 using MccIntakeService.Domain.Factory;
+using MccIntakeService.Domain.Outbox;
 using MccIntakeService.Domain.QualityTests;
 using MccIntakeService.Domain.Societies;
 using MccIntakeService.Domain.Sync;
@@ -49,6 +50,9 @@ public class MccIntakeDbContext : DbContext
 
     /// <summary>Offline records already uploaded, so a replayed queue applies once (SCRUM-10).</summary>
     public DbSet<SyncedRecord> SyncedRecords => Set<SyncedRecord>();
+
+    /// <summary>Events waiting to be relayed to Kafka, written with the record they describe (SCRUM-141).</summary>
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     /// <summary>
     /// Chilling centres registered in the system (SCRUM-36). Distinct from <see cref="Society"/>:

@@ -48,7 +48,8 @@ public sealed record SyncQualityTestPayload(
     string? FailedValue,
     bool SmellOk = true,
     bool ColourOk = true,
-    bool TasteOk = true);
+    bool TasteOk = true,
+    DateTime? TestedAtUtc = null);
 
 /// <summary>A pour captured offline.</summary>
 public sealed record SyncPourPayload(string TankCode, string ConsignmentReference);
@@ -270,7 +271,10 @@ public sealed class SyncService : ISyncService
                 Sensory: new SensoryCheck(payload.SmellOk, payload.ColourOk, payload.TasteOk),
                 FailedParameter: payload.FailedParameter,
                 FailedValue: payload.FailedValue,
-                TestedBy: syncedBy),
+                TestedBy: syncedBy,
+                // When the panel was taken offline, so the record and its ConsignmentTested
+                // event carry that time rather than the upload time (SCRUM-141).
+                TestedAtUtc: payload.TestedAtUtc),
             cancellationToken);
 
         return view.ConsignmentReference;

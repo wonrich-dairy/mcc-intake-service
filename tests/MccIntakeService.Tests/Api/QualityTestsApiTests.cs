@@ -4,7 +4,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.Societies;
+using MccIntakeService.Infrastructure.Persistence;
 using MccIntakeService.Tests.Support;
+using Microsoft.Extensions.DependencyInjection;
 using Wonrich.Auth.Authorization;
 
 namespace MccIntakeService.Tests.Api;
@@ -290,5 +292,22 @@ public class QualityTestsApiTests
 
         Assert.Contains("/api/consignments/{reference}/quality-test", document, StringComparison.Ordinal);
         Assert.Contains("/api/consignments/{reference}/quality-test/preview", document, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Recording_a_verdict_stages_a_ConsignmentTested_event_in_the_outbox()
+    {
+        // SCRUM-141: proves the application wires the outbox into the gate test, not just the unit.
+        using var factory = new IntakeApiFactory();
+        var client = factory.CreateClientAs(WonrichRoles.IntakeOfficer);
+        var reference = await RegisterConsignmentAsync(client);
+
+        var response = await client.PostAsJsonAsync($"/api/consignments/{reference}/quality-test", SoundPanel());
+        response.EnsureSuccessStatusCode();
+
+        using var scope = factory.Services.CreateScope();
+        var message = Assert.Single(scope.ServiceProvider.GetRequiredService<MccIntakeDbContext>().OutboxMessages);
+        Assert.Equal("ConsignmentTested", message.EventType);
+        Assert.Contains(reference, message.Payload);
     }
 }

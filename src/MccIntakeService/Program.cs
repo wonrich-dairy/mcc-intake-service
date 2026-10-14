@@ -3,6 +3,7 @@ using MccIntakeService.Api.Infrastructure;
 using MccIntakeService.Application.Abstractions;
 using MccIntakeService.Application.Consignments;
 using MccIntakeService.Application.Dispatch;
+using MccIntakeService.Application.Events;
 using MccIntakeService.Application.Factory;
 using MccIntakeService.Application.Sync;
 using MccIntakeService.Application.Traceability;
@@ -10,8 +11,10 @@ using MccIntakeService.Application.QualityTests;
 using MccIntakeService.Application.Societies;
 using MccIntakeService.Application.Tanks;
 using MccIntakeService.Configuration;
+using MccIntakeService.Infrastructure.Kafka;
 using MccIntakeService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi;
 using Wonrich.Auth;
 using Wonrich.Auth.Authorization;
@@ -121,6 +124,28 @@ builder.Services.AddWonrichAuthorization(policies => policies
 // Quality test panel (SCRUM-50). Consumed from the shared library rather than reimplemented,
 // so the gate and the lab cannot reach different verdicts on the same readings.
 builder.Services.AddQualityPanel(builder.Configuration);
+
+// ConsignmentTested (SCRUM-141): every gate verdict is staged in outbox_messages in the same
+// SaveChanges as the verdict, and the relay publishes it to Kafka afterwards. Without
+// Kafka:BootstrapServers the rows wait in the outbox rather than being lost.
+builder.Services.AddHttpContextAccessor();
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.Configure<ConsignmentTestedOptions>(builder.Configuration.GetSection(ConsignmentTestedOptions.SectionName));
+builder.Services.AddScoped<IConsignmentTestedOutbox, ConsignmentTestedOutbox>();
+builder.Services.AddSingleton(builder.Configuration.GetSection(OutboxOptions.SectionName).Get<OutboxOptions>() ?? new OutboxOptions());
+builder.Services.AddSingleton<OutboxRelay>();
+if (string.IsNullOrWhiteSpace(builder.Configuration["Kafka:BootstrapServers"]))
+{
+    builder.Services.AddSingleton<IKafkaProducer, NoOpKafkaProducer>();
+}
+else
+{
+    builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
+}
+if (builder.Configuration.GetValue("Outbox:RelayEnabled", true))
+{
+    builder.Services.AddHostedService<OutboxRelayService>();
+}
 
 // Swagger / OpenAPI — Swashbuckle (SCRUM-49)
 builder.Services.AddEndpointsApiExplorer();
