@@ -54,6 +54,8 @@ excludes generated EF migrations from the coverage figure.
 | `Intake:TimeZone` | `Asia/Colombo` | Zone the centre's wall clock and intake dates run on. |
 | `Intake:MilkDensityKgPerLitre` | `1.03` | Density used to derive litres from the weight recorded at the gate. |
 | `Cors:AllowedOrigins` | *(empty)* | Browser origins the SPA is served from. Empty allows none, so an environment that has not been told about its client refuses every preflight. |
+| `Kafka:BootstrapServers` | *(empty)* | Broker address: `kafka:9092` inside compose, the Event Hubs endpoint on Azure (SCRUM-88). Read by no code yet. |
+| `Kafka:SecurityProtocol` | *(empty)* | `Plaintext` locally, `SaslSsl` on Azure, with `Kafka:SaslMechanism`, `Kafka:SaslUsername` and `Kafka:SaslPassword` alongside. See `docs/kafka.md`. |
 | `Auth:Issuer` | `wonrich-auth` | Issuer stamped on tokens and required by every validator. |
 | `Auth:Audience` | `wonrich-services` | Audience all four services accept. |
 | `Auth:SigningKey` | *(empty)* | Symmetric signing key, at least 32 characters. Supplied per environment; never committed. |
@@ -338,6 +340,23 @@ Because the suite runs on SQLite, which maps `DateOnly` happily, `DateOnlyMappin
 model against the MySQL provider — no server needed — so a provider-specific mapping fault fails CI
 rather than QA.
 
+
+## Kafka (SCRUM-88)
+
+This service produces `wonrich.intake.lab-results.v1`; the processing service consumes it. The
+broker and the topic definitions live in `processing-service`, so there is one broker for the whole
+system rather than one per repository. `docker-compose up` alone still needs no broker; to attach
+to it, bring `processing-service`'s stack up and add the override:
+
+```powershell
+docker-compose -f docker-compose.yml -f docker-compose.kafka.yml up -d
+```
+
+Connection settings are the `Kafka__*` keys in `.env.example`, identical to the processing service's.
+Staging uses the shared Event Hubs namespace. Both are in `docs/kafka.md`.
+
+> Nothing in the service produces yet - the `Kafka__*` settings are read by no code until the story
+> that publishes lab results lands.
 
 ## Branching strategy
 - `main`: protected, production-ready

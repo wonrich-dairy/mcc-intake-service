@@ -1,0 +1,29 @@
+# Attach the service to the Wonrich Kafka broker (SCRUM-88).
+#
+# The broker lives in processing-service's compose stack, not here: one broker, one topic set,
+# owned by the repository that defines the topics. This override joins its network and hands the
+# service the connection settings, so `docker-compose up` alone is unchanged and still needs no
+# broker. Opt in with:
+#
+#   docker-compose -f docker-compose.yml -f docker-compose.kafka.yml up -d
+#
+# Bring processing-service's stack up first; the network is declared external, so compose refuses
+# to start rather than silently creating an empty one with the same name.
+services:
+  mcc-intake-api:
+    environment:
+      # Same key names as processing-service, so one convention covers the whole system. The
+      # defaults are the local broker; .env overrides them for anything else.
+      - Kafka__BootstrapServers=${Kafka__BootstrapServers:-kafka:9092}
+      - Kafka__SecurityProtocol=${Kafka__SecurityProtocol:-Plaintext}
+    networks:
+      # Keep the project's own network too, or MySQL stops resolving.
+      - default
+      - kafka
+
+networks:
+  kafka:
+    external: true
+    # Compose names a project after its folder, so this is where a clone of processing-service
+    # puts its broker. Override in .env if that checkout has a different name.
+    name: ${KAFKA_NETWORK:-processing-service_default}

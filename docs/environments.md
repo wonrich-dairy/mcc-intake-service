@@ -40,6 +40,11 @@ All configuration is resolved at **runtime** via Azure App Service Application S
 |---|---|---|
 | `ASPNETCORE_ENVIRONMENT` | `Staging` or `Production` | App Service → Configuration |
 | `ConnectionStrings__DefaultConnection` | MySQL connection string | App Service → Configuration |
+| `Kafka__BootstrapServers` | Event Hubs Kafka endpoint, `<namespace>.servicebus.windows.net:9093` (SCRUM-88) | App Service → Configuration |
+| `Kafka__SecurityProtocol` | `SaslSsl` on Azure, `Plaintext` locally | App Service → Configuration |
+| `Kafka__SaslMechanism` | `Plain` | App Service → Configuration |
+| `Kafka__SaslUsername` | The literal token `$ConnectionString` | App Service → Configuration |
+| `Kafka__SaslPassword` | Event Hubs connection string (secret) — see `docs/kafka.md` | App Service → Configuration |
 
 ### Deployment Credentials
 
