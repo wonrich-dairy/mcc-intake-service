@@ -6,11 +6,11 @@ namespace Wonrich.MccIntake.Contracts.Events;
 public static class MccIntakeTopics
 {
     /// <summary>One message per gate verdict, accept and reject alike (SCRUM-141).</summary>
-    public const string ConsignmentTested = "wonrich.mcc.consignment-tested.v1";
+    public const string ConsignmentTested = "wonrich.intake.consignment-tested.v1";
 }
 
 /// <summary>
-/// Published on <c>wonrich.mcc.consignment-tested.v1</c> each time an officer records a gate
+/// Published on <c>wonrich.intake.consignment-tested.v1</c> each time an officer records a gate
 /// verdict, accepted or rejected (SCRUM-141). Rejected milk never leaves the MCC, so this is the
 /// only way it reaches society performance reporting.
 /// Same envelope conventions as Processing and Quality Lab: camelCase JSON, headers

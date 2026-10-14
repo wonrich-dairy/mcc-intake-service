@@ -1,7 +1,7 @@
 # Kafka events (SCRUM-141)
 
 The MCC and Intake service publishes one event: **ConsignmentTested**, on
-`wonrich.mcc.consignment-tested.v1`, each time an officer records a gate verdict, accepted or
+`wonrich.intake.consignment-tested.v1`, each time an officer records a gate verdict, accepted or
 rejected. Traceability consumes it into the daily society aggregate (consumer group
 `traceability-consignment-tested`), so the QCO sees acceptance rates that include milk turned
 away at the gate.
@@ -19,7 +19,7 @@ The contract is `ConsignmentTestedEvent` in the `Wonrich.MccIntake.Contracts` pa
    and `x-correlation-id` (the request's `X-Correlation-ID`).
 3. If the broker is down, the officer's submission still succeeds. The row stays `Pending` and is
    retried with backoff; after `Outbox:MaxRetries` (20) failures it is marked `Poisoned` and a
-   copy is parked on `wonrich.dlq.mcc-consignment-tested.v1`.
+   copy is parked on `wonrich.dlq.intake-consignment-tested.v1`.
 
 Delivery is at-least-once: consumers deduplicate on `eventId`.
 
@@ -42,10 +42,10 @@ makes, for example, any SNF below 9.35 marginal.
 |---|---|---|
 | `Kafka__BootstrapServers` | empty | Without it, events wait in the outbox (nothing is lost) |
 | `Kafka__SecurityProtocol`, `Kafka__SaslMechanism`, `Kafka__SaslUsername`, `Kafka__SaslPassword` | Plaintext | Event Hubs on staging, as in processing-service |
-| `ConsignmentTested__Topic` | `wonrich.mcc.consignment-tested.v1` | |
+| `ConsignmentTested__Topic` | `wonrich.intake.consignment-tested.v1` | |
 | `ConsignmentTested__MarginalMargin` | `0.10` | |
 | `Outbox__RelayEnabled` | `true` | |
 | `Outbox__MaxRetries` / `Outbox__BatchSize` | `20` / `20` | |
-| `Outbox__DeadLetterTopic` | `wonrich.dlq.mcc-consignment-tested.v1` | |
+| `Outbox__DeadLetterTopic` | `wonrich.dlq.intake-consignment-tested.v1` | |
 
 The topics must exist on the broker (auto-creation is off): see wonrich-infra `kafka/topics.env`.

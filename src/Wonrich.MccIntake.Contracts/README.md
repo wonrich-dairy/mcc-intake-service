@@ -4,7 +4,7 @@ Event contracts the MCC and Intake service publishes on Kafka (SCRUM-141).
 
 | Type | Topic | `eventType` header / field | When |
 |---|---|---|---|
-| `ConsignmentTestedEvent` | `wonrich.mcc.consignment-tested.v1` | `ConsignmentTested` | An officer records a gate verdict, accept or reject |
+| `ConsignmentTestedEvent` | `wonrich.intake.consignment-tested.v1` | `ConsignmentTested` | An officer records a gate verdict, accept or reject |
 
 Namespace: `Wonrich.MccIntake.Contracts.Events`.
 

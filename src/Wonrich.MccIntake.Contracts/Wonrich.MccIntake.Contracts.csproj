@@ -23,7 +23,7 @@
     <Version>1.0.0</Version>
     <Authors>Wonrich Dairy</Authors>
     <Company>Wonrich Dairy</Company>
-    <Description>Kafka event contracts published by the Wonrich MCC and Intake service on wonrich.mcc.consignment-tested.v1: ConsignmentTestedEvent (schemaVersion v1).</Description>
+    <Description>Kafka event contracts published by the Wonrich MCC and Intake service on wonrich.intake.consignment-tested.v1: ConsignmentTestedEvent (schemaVersion v1).</Description>
     <PackageTags>wonrich;mcc;intake;kafka;contracts;events</PackageTags>
     <RepositoryUrl>https://github.com/wonrich-dairy/mcc-intake-service</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

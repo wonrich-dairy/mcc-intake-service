@@ -17,7 +17,7 @@ public sealed class OutboxOptions
     public int BatchSize { get; set; } = 20;
 
     /// <summary>Where a row goes once its retries are spent.</summary>
-    public string DeadLetterTopic { get; set; } = "wonrich.dlq.mcc-consignment-tested.v1";
+    public string DeadLetterTopic { get; set; } = "wonrich.dlq.intake-consignment-tested.v1";
 }
 
 /// <summary>
