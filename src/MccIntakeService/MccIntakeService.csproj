@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" Version="2.15.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -21,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Wonrich.Auth\Wonrich.Auth.csproj" />
+    <ProjectReference Include="..\Wonrich.MccIntake.Contracts\Wonrich.MccIntake.Contracts.csproj" />
     <ProjectReference Include="..\Wonrich.QualityPanel\Wonrich.QualityPanel.csproj" />
   </ItemGroup>
 

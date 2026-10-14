@@ -53,6 +53,10 @@ internal sealed class IntakeApiFactory : WebApplicationFactory<Program>
 
         builder.UseSetting("Cors:AllowedOrigins:0", AllowedTestOrigin);
 
+        // The relay would share the single SQLite connection with the requests under test; the
+        // outbox tests drive it directly instead.
+        builder.UseSetting("Outbox:RelayEnabled", "false");
+
         builder.ConfigureServices(services =>
         {
             RemoveDbContextRegistration(services);

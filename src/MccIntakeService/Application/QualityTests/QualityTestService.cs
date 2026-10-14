@@ -1,4 +1,5 @@
 ﻿using MccIntakeService.Application.Abstractions;
+using MccIntakeService.Application.Events;
 using MccIntakeService.Domain.Common;
 using MccIntakeService.Domain.QualityTests;
 using MccIntakeService.Infrastructure.Persistence;
@@ -19,7 +20,8 @@ public sealed record RecordTestCommand(
     SensoryCheck? Sensory = null,
     string? FailedParameter = null,
     string? FailedValue = null,
-    string? TestedBy = null)
+    string? TestedBy = null,
+    DateTime? TestedAtUtc = null)
 {
     /// <summary>
     /// The senses, defaulting to a sound sample. An older client that does not send them is
@@ -111,15 +113,25 @@ public sealed class QualityTestService : IQualityTestService
     private readonly MccIntakeDbContext _dbContext;
     private readonly IQualityPanelEvaluator _panel;
     private readonly IIntakeClock _clock;
+    private readonly IConsignmentTestedOutbox? _events;
 
+    /// <param name="dbContext">The intake datastore.</param>
+    /// <param name="panel">Evaluates the readings (shared quality panel library).</param>
+    /// <param name="clock">The centre's clock.</param>
+    /// <param name="events">
+    /// Stages the ConsignmentTested event (SCRUM-141). Registered in Program.cs; null only in
+    /// tests that are not about the event.
+    /// </param>
     public QualityTestService(
         MccIntakeDbContext dbContext,
         IQualityPanelEvaluator panel,
-        IIntakeClock clock)
+        IIntakeClock clock,
+        IConsignmentTestedOutbox? events = null)
     {
         _dbContext = dbContext;
         _panel = panel;
         _clock = clock;
+        _events = events;
     }
 
     public TestPreview Preview(RecordTestCommand command)
@@ -136,7 +148,10 @@ public sealed class QualityTestService : IQualityTestService
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        // The society and cans go into the ConsignmentTested event.
         var consignment = await _dbContext.Consignments
+            .Include(candidate => candidate.Society)
+            .Include(candidate => candidate.Cans)
             .FirstOrDefaultAsync(candidate => candidate.Reference == reference, cancellationToken)
             ?? throw new EntityNotFoundException("Consignment", reference);
 
@@ -145,6 +160,12 @@ public sealed class QualityTestService : IQualityTestService
         if (await _dbContext.QualityTests.AnyAsync(test => test.ConsignmentId == consignment.Id, cancellationToken))
         {
             throw new ConsignmentAlreadyTestedException(reference);
+        }
+
+        // A device with a wrong clock must not post-date a verdict. A few minutes of drift is allowed.
+        if (command.TestedAtUtc is { } claimed && claimed > _clock.UtcNow.UtcDateTime.AddMinutes(5))
+        {
+            throw new DomainValidationException("The test time is in the future; check the device's clock.");
         }
 
         var result = Evaluate(command);
@@ -159,9 +180,15 @@ public sealed class QualityTestService : IQualityTestService
             command.FailedParameter,
             command.FailedValue,
             command.TestedBy,
-            _clock.UtcNow);
+            // A record captured offline keeps the time it was taken, not the time it was synced.
+            command.TestedAtUtc is { } testedAt ? DateTime.SpecifyKind(testedAt, DateTimeKind.Utc) : _clock.UtcNow);
 
         _dbContext.QualityTests.Add(test);
+
+        // Staged in the same SaveChanges as the verdict: a rollback publishes nothing, and Kafka is
+        // only reached later by the outbox relay, so a broker outage never fails this submission.
+        _events?.Stage(test, consignment);
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return ToView(test, consignment.Reference);
